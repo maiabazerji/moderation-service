@@ -1,6 +1,7 @@
 import os
 import json
 from pathlib import Path
+import shutil
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,6 +13,7 @@ from sklearn.metrics import (
 )
 import tensorflow as tf
 from tensorflow.keras.utils import load_img
+from PIL import Image, UnidentifiedImageError
 
 def _get_img_size(train_cfg: dict) -> tuple[int, int]:
     image_size = train_cfg["image_size"]
@@ -59,6 +61,82 @@ def _build_paths(train_cfg: dict) -> dict:
         paths[k].mkdir(parents=True, exist_ok=True)
 
     return paths
+
+
+def _is_valid_image_file(path: Path) -> bool:
+    try:
+        with Image.open(path) as img:
+            img.verify()
+        return True
+    except (UnidentifiedImageError, OSError, ValueError):
+        return False
+
+
+def _sanitize_image_directory(root_dir: Path, quarantine_dir: Path) -> dict:
+    allowed_ext = {".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp"}
+    moved = []
+    checked = 0
+
+    for class_dir in sorted(root_dir.iterdir()):
+        if not class_dir.is_dir():
+            continue
+        for file_path in class_dir.iterdir():
+            if not file_path.is_file():
+                continue
+            if file_path.suffix.lower() not in allowed_ext:
+                continue
+            checked += 1
+            if _is_valid_image_file(file_path):
+                continue
+
+            target_dir = quarantine_dir / root_dir.name / class_dir.name
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target_path = target_dir / file_path.name
+
+            # Avoid collisions if same filename appears multiple times.
+            if target_path.exists():
+                stem = file_path.stem
+                suffix = file_path.suffix
+                idx = 1
+                while True:
+                    candidate = target_dir / f"{stem}__dup{idx}{suffix}"
+                    if not candidate.exists():
+                        target_path = candidate
+                        break
+                    idx += 1
+
+            shutil.move(str(file_path), str(target_path))
+            moved.append((file_path, target_path))
+
+    return {"checked": checked, "moved": moved}
+
+
+def _sanitize_datasets_if_needed(train_cfg: dict, paths: dict):
+    sanitize_enabled = train_cfg.get("sanitize_invalid_images", True)
+    if not sanitize_enabled:
+        print("Image sanitization disabled by config (sanitize_invalid_images=false).")
+        return
+
+    quarantine_dir = paths["dataset_root"] / "_invalid_images"
+
+    print(f"Scanning training images in: {paths['train_dir']}")
+    train_report = _sanitize_image_directory(paths["train_dir"], quarantine_dir)
+    print(
+        f"Train scan complete: checked={train_report['checked']} moved_invalid={len(train_report['moved'])}"
+    )
+
+    if paths["test_dir"].exists():
+        print(f"Scanning test images in: {paths['test_dir']}")
+        test_report = _sanitize_image_directory(paths["test_dir"], quarantine_dir)
+        print(
+            f"Test scan complete: checked={test_report['checked']} moved_invalid={len(test_report['moved'])}"
+        )
+
+    if train_report["moved"]:
+        preview = train_report["moved"][:5]
+        print("Examples of moved invalid train files:")
+        for src, dst in preview:
+            print(f" - {src} -> {dst}")
 
 
 def _build_datasets(train_cfg: dict, paths: dict, img_size: tuple[int, int]):
@@ -567,6 +645,7 @@ def run(cfg: dict):
 
     img_size = _get_img_size(train_cfg)
     paths = _build_paths(train_cfg)
+    _sanitize_datasets_if_needed(train_cfg, paths)
 
     train_ds, val_ds, test_ds, class_names, num_classes = _build_datasets(
         train_cfg, paths, img_size
