@@ -8,3 +8,4 @@ pyyaml
 icrawler
 requests
 ddgs
+setuptools
