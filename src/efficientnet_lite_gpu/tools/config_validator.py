@@ -74,10 +74,14 @@ def validate_config() -> dict:
     dataset_dir = _require_key(train_cfg, "dataset_dir", "train_config")
     _require_str(dataset_dir, "train_config.dataset_dir")
     dataset_dir_path = Path(dataset_dir)
+    rebuild_clean_split = bool(train_cfg.get("rebuild_clean_split_before_train", False))
     if not dataset_dir_path.exists():
-        print(f"{RED}❌ dataset_dir does not exist: {dataset_dir_path.resolve()}{RESET}")
-        sys.exit(1)
-    if not dataset_dir_path.is_dir():
+        if rebuild_clean_split:
+            print(f"{YELLOW}⚠️ dataset_dir does not exist yet, it will be created by clean split rebuild: {dataset_dir_path.resolve()}{RESET}")
+        else:
+            print(f"{RED}❌ dataset_dir does not exist: {dataset_dir_path.resolve()}{RESET}")
+            sys.exit(1)
+    elif not dataset_dir_path.is_dir():
         print(f"{RED}❌ dataset_dir is not a directory: {dataset_dir_path.resolve()}{RESET}")
         sys.exit(1)
 
