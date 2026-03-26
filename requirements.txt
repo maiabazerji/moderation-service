@@ -9,3 +9,4 @@ icrawler
 requests
 ddgs
 setuptools
+typing-extensions
