@@ -21,6 +21,9 @@ src/efficientnet_lite_gpu/.venv-efficientnet
 .env.*
 .cadence
 
+# Claude
+.claude/
+
 # Editors/OS
 .idea/
 .vscode/
