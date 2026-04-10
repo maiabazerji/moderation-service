@@ -27,6 +27,9 @@ class _YtdlpLogger:
                 )
                 _js_runtime_notice_shown = True
             return
+        # Suppress PO Token warnings (android/ios clients not used)
+        if "po token" in low or "po_token" in low:
+            return
         sys.stderr.write(f"WARNING: {msg}\n")
 
     def error(self, msg: str) -> None:
@@ -114,10 +117,10 @@ def youtube_dl_base_options(*, ffmpeg_location: str | None = None) -> dict[str, 
         "abort_on_error": False,
         "ignoreerrors": True,
         "logger": _YtdlpLogger(),
-        # Prefer clients that often work without full EJS (still helps to have Node).
+        # Use web client only — android/ios now require GVS PO tokens.
         "extractor_args": {
             "youtube": {
-                "player_client": ["android", "ios", "web"],
+                "player_client": ["web"],
             },
         },
     }
