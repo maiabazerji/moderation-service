@@ -188,6 +188,8 @@ def main(args):
         json.dump(training_metrics, f, indent=2)
     print(f"Training metrics saved to {metrics_path}")
 
+    return str(out_path)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train Video Food Classifier.")
