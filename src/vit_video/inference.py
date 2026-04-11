@@ -10,7 +10,10 @@ import cv2
 import numpy as np
 import torch
 
-import _bootstrap; _bootstrap.setup()
+try:
+    import _bootstrap; _bootstrap.setup()
+except ImportError:
+    pass  # sys.path already configured (e.g. Colab notebook)
 
 from vit_video.paths import PACKAGE_ROOT
 from vit_video.utils import (
@@ -248,9 +251,9 @@ if __name__ == "__main__":
     parser.add_argument("--webcam", action="store_true")
     parser.add_argument("--num-frames", type=int, default=8)
     parser.add_argument("--img-size", type=int, default=224)
-    parser.add_argument("--num-classes", type=int, default=2)
-    parser.add_argument("--classes", type=str, default="healthy,unhealthy",
-                        help="Comma-separated class names (e.g. healthy,unhealthy)")
+    parser.add_argument("--num-classes", type=int, default=3)
+    parser.add_argument("--classes", type=str, default="healthy,other,unhealthy",
+                        help="Comma-separated class names (e.g. healthy,other,unhealthy)")
     parser.add_argument("--backbone", type=str, default="auto")
     parser.add_argument("--norm-mean", type=str, default="0.485,0.456,0.406")
     parser.add_argument("--norm-std", type=str, default="0.229,0.224,0.225")

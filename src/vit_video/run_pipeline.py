@@ -4,7 +4,10 @@ import argparse
 import sys
 from pathlib import Path
 
-import _bootstrap; _bootstrap.setup()
+try:
+    import _bootstrap; _bootstrap.setup()
+except ImportError:
+    pass  # sys.path already configured (e.g. Colab notebook)
 
 from vit_video.data.splits import (
     ensure_split_manifest,

@@ -15,7 +15,10 @@ from sklearn.metrics import (
 )
 from tqdm import tqdm
 
-import _bootstrap; _bootstrap.setup()
+try:
+    import _bootstrap; _bootstrap.setup()
+except ImportError:
+    pass  # sys.path already configured (e.g. Colab notebook)
 
 from vit_video.paths import DEFAULT_FRAMES_DIR, PACKAGE_ROOT
 from vit_video.utils import print_device_info, parse_normalization_values, get_device, extract_state_dict, load_model_from_checkpoint

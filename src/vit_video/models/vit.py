@@ -37,8 +37,20 @@ class MobileViTModel(nn.Module):
         self.backbone = backbone
         self.dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
         self.temporal_conv = None
+        self.temporal_lstm = None
+
         if temporal_pool == "conv1d":
             self.temporal_conv = nn.Conv1d(feat_dim, feat_dim, kernel_size=3, padding=1)
+        elif temporal_pool == "lstm":
+            lstm_hidden = feat_dim // 2
+            self.temporal_lstm = nn.LSTM(
+                input_size=feat_dim,
+                hidden_size=lstm_hidden,
+                num_layers=1,
+                batch_first=True,
+                bidirectional=True,
+            )
+            # Bidirectional doubles the output size, so it maps back to feat_dim
         self.classifier = nn.Linear(feat_dim, num_classes)
 
         if freeze_backbone:
@@ -116,7 +128,10 @@ class MobileViTModel(nn.Module):
         feat_dim = feats.shape[1]
         feats = feats.view(b, t, feat_dim)
 
-        if self.temporal_pool == "avg":
+        if self.temporal_pool == "lstm" and self.temporal_lstm is not None:
+            lstm_out, _ = self.temporal_lstm(feats)  # (b, t, 2*hidden)
+            pooled = lstm_out.mean(dim=1)
+        elif self.temporal_pool == "avg":
             pooled = feats.mean(dim=1)
         elif self.temporal_pool == "max":
             pooled, _ = feats.max(dim=1)

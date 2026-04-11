@@ -8,7 +8,10 @@ from typing import List, Optional, Tuple
 
 import torch
 
-import _bootstrap; _bootstrap.setup()
+try:
+    import _bootstrap; _bootstrap.setup()
+except ImportError:
+    pass  # sys.path already configured (e.g. Colab notebook)
 
 from vit_video.paths import PACKAGE_ROOT
 from vit_video.utils import print_device_info, parse_normalization_values, load_model_from_checkpoint
@@ -285,8 +288,8 @@ if __name__ == "__main__":
     parser.add_argument("--output-dir", type=str, default="exported_models")
     parser.add_argument("--format", type=str, nargs="+", default=["torchscript", "onnx"],
                         choices=["torchscript", "onnx", "coreml", "tflite", "all"])
-    parser.add_argument("--num-classes", type=int, default=2)
-    parser.add_argument("--classes", type=str, default="healthy,unhealthy")
+    parser.add_argument("--num-classes", type=int, default=3)
+    parser.add_argument("--classes", type=str, default="healthy,other,unhealthy")
     parser.add_argument("--backbone", type=str, default="auto")
     parser.add_argument("--num-frames", type=int, default=8)
     parser.add_argument("--img-size", type=int, default=224)
