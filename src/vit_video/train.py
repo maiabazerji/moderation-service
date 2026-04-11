@@ -8,7 +8,10 @@ from pathlib import Path
 
 import torch
 
-import _bootstrap; _bootstrap.setup()
+try:
+    import _bootstrap; _bootstrap.setup()
+except ImportError:
+    pass  # sys.path already configured (e.g. Colab notebook)
 
 from vit_video.paths import DEFAULT_FRAMES_DIR, PACKAGE_ROOT
 from vit_video.utils import print_device_info, parse_normalization_values, get_device
@@ -211,7 +214,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-class-weighting", dest="class_weighting", action="store_false",
                         help="Disable class weighting")
     parser.add_argument("--min-samples-per-class", type=int, default=50)
-    parser.add_argument("--temporal-pool", type=str, default="avg", choices=["avg", "max", "conv1d"])
+    parser.add_argument("--temporal-pool", type=str, default="lstm", choices=["avg", "max", "conv1d", "lstm"])
     parser.add_argument("--norm-mean", type=str, default="0.485,0.456,0.406")
     parser.add_argument("--norm-std", type=str, default="0.229,0.224,0.225")
     parser.add_argument("--hparam-search-epochs", type=int, default=0)

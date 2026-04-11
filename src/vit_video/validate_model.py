@@ -13,7 +13,10 @@ import torch
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 from torch.utils.data import DataLoader, Subset
 
-import _bootstrap; _bootstrap.setup()
+try:
+    import _bootstrap; _bootstrap.setup()
+except ImportError:
+    pass  # sys.path already configured (e.g. Colab notebook)
 
 from vit_video.data import VideoDataset
 from vit_video.data.splits import frames_directory_has_images, video_stem_from_path
@@ -246,6 +249,12 @@ EXTERNAL_TEST_QUERIES = {
         "fresh fruit smoothie recipe",
         "steamed vegetables dinner plate",
         "grilled fish lemon herbs",
+    ],
+    "other": [
+        "city walking tour vlog",
+        "pet cat playing toys",
+        "car review driving test",
+        "landscape photography timelapse",
     ],
     "unhealthy": [
         "deep fried mozzarella sticks",

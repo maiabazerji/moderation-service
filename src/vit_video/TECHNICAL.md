@@ -2,18 +2,59 @@
 
 ## Overview
 
-Binary video classification model that labels food content as **healthy** or **unhealthy**. Uses a Vision Transformer (ViT) backbone with temporal pooling to aggregate frame-level features into a single video-level prediction.
+Fine-grained video/image classification model for food content moderation. Classifies into **16 categories** across 3 health groups using a MobileViT-XXS backbone with a bidirectional LSTM for temporal aggregation.
 
-**Framework:** PyTorch  
-**Task:** Binary classification (healthy / unhealthy)  
-**Input:** Video or sequence of frames  
-**Output:** Class probabilities (softmax over 2 classes)
+**Framework:** PyTorch
+**Task:** 16-class classification (8 healthy + 7 unhealthy + 1 not_food)
+**Input:** Video or sequence of frames
+**Output:** Class probabilities (softmax over 16 classes), rollup to healthy/unhealthy/not_food
 
 ---
 
-## 1. Model Architecture
+## 1. Classes
 
-### 1.1 High-Level Pipeline
+### 1.1 Fine-Grained Classes (16)
+
+| # | Class | Health Group | Description |
+|---|---|---|---|
+| 1 | `fruits` | healthy | Whole fruits, fruit bowls, sliced fruit |
+| 2 | `vegetables` | healthy | Cooked and raw vegetables |
+| 3 | `salads` | healthy | Green salads, grain salads, mixed salads |
+| 4 | `seafood` | healthy | Grilled/baked fish, sushi, shrimp, shellfish |
+| 5 | `grilled_meat` | healthy | Lean grilled meats, chicken breast, steak |
+| 6 | `grain_bowls` | healthy | Quinoa, rice bowls, oatmeal, buddha bowls |
+| 7 | `soups` | healthy | Vegetable soups, miso, broths, stews |
+| 8 | `smoothies` | healthy | Smoothies, fresh juices, healthy drinks |
+| 9 | `burgers` | unhealthy | Cheeseburgers, hamburgers, hot dogs |
+| 10 | `pizza` | unhealthy | All pizza types, calzones |
+| 11 | `fried_food` | unhealthy | Fried chicken, fries, onion rings, nuggets |
+| 12 | `desserts` | unhealthy | Cakes, donuts, pastries, pies, cookies |
+| 13 | `candy_sweets` | unhealthy | Candy, chocolate, ice cream, frozen treats |
+| 14 | `salty_snacks` | unhealthy | Chips, nachos, pretzels, cheese puffs |
+| 15 | `sugary_drinks` | unhealthy | Soda, milkshakes, energy drinks, frappuccinos |
+| 16 | `not_food` | not_food | People, animals, objects, nature, food-adjacent items |
+
+### 1.2 Health-Label Rollup
+
+The 16 fine-grained predictions are mapped to 3 moderation groups for the API:
+
+```python
+HEALTH_LABELS = {
+    "fruits": "healthy", "vegetables": "healthy", "salads": "healthy",
+    "seafood": "healthy", "grilled_meat": "healthy", "grain_bowls": "healthy",
+    "soups": "healthy", "smoothies": "healthy",
+    "burgers": "unhealthy", "pizza": "unhealthy", "fried_food": "unhealthy",
+    "desserts": "unhealthy", "candy_sweets": "unhealthy",
+    "salty_snacks": "unhealthy", "sugary_drinks": "unhealthy",
+    "not_food": "not_food",
+}
+```
+
+---
+
+## 2. Model Architecture
+
+### 2.1 High-Level Pipeline
 
 ```
 Video (T frames)
@@ -22,100 +63,73 @@ Video (T frames)
 [Frame Extraction] -- evenly-spaced sampling (default T=8)
   |
   v
-[Per-Frame ViT Backbone] -- pretrained feature extractor
+[Per-Frame MobileViT-XXS Backbone] -- pretrained ImageNet feature extractor
   |  Input:  (B*T, 3, 224, 224)
   |  Output: (B*T, feat_dim)
   v
 [Reshape] -- (B, T, feat_dim)
   |
   v
-[Temporal Pooling] -- avg / max / conv1d
+[Bidirectional LSTM] -- 1-layer, hidden_size = feat_dim/2 per direction
+  |  Input:  (B, T, feat_dim)
+  |  Output: (B, T, feat_dim)
+  v
+[Temporal Mean Pool] -- average across T timesteps
   |  Output: (B, feat_dim)
   v
-[Dropout]
+[Dropout(0.4)]
   |
   v
-[Linear Classifier] -- (feat_dim -> num_classes)
+[Linear Classifier] -- (feat_dim -> 16)
   |
   v
-Output: (B, 2) logits
+Output: (B, 16) logits
 ```
 
-### 1.2 Backbone Options
-
-The model auto-selects the backbone based on available hardware:
+### 2.2 Backbone Options
 
 | Backbone | Feature Dim | Source | When Selected |
 |---|---|---|---|
-| `vit_b_16` | 768 | torchvision / timm | GPU available (default) |
-| `vit_b_32` | 768 | torchvision / timm | Manual selection |
-| `vit_l_16` | 1024 | torchvision / timm | Manual selection |
-| `vit_l_32` | 1024 | torchvision / timm | Manual selection |
-| `vit_h_14` | 1280 | torchvision / timm | Manual selection |
 | `mobilevit_xxs` | 320 | timm | CPU fallback (default) |
 | `mobilevit_xs` | 384 | timm | Manual selection |
 | `mobilevit_s` | 640 | timm | Manual selection |
+| `vit_b_16` | 768 | torchvision / timm | GPU available (default) |
+| `vit_b_32` | 768 | torchvision / timm | Manual selection |
+| `vit_l_16` | 1024 | torchvision / timm | Manual selection |
+| `vit_h_14` | 1280 | torchvision / timm | Manual selection |
 
-**Loading priority:** torchvision first, falls back to timm if unavailable.
-
-All backbones are loaded with `num_classes=0` (feature extractor mode, no classification head). Pretrained on ImageNet.
-
-### 1.3 Temporal Pooling
-
-Three strategies to aggregate frame features across the temporal dimension:
+### 2.3 Temporal Pooling Modes
 
 | Mode | Operation | Description |
 |---|---|---|
-| `avg` (default) | `feats.mean(dim=1)` | Mean pooling over T frames |
-| `max` | `feats.max(dim=1)` | Max pooling over T frames |
-| `conv1d` | `Conv1d(feat_dim, feat_dim, kernel=3, padding=1) -> mean` | Learned temporal convolution then mean |
+| `lstm` (default) | `BiLSTM(feat_dim, feat_dim//2, bidirectional=True) -> mean` | Learns temporal frame dependencies |
+| `avg` | `feats.mean(dim=1)` | Simple mean pooling |
+| `max` | `feats.max(dim=1)` | Max pooling |
+| `conv1d` | `Conv1d(feat_dim, feat_dim, kernel=3) -> mean` | Learned temporal convolution |
 
-### 1.4 Classification Head
-
-```
-Dropout(p=0.4)  ->  Linear(feat_dim, 2)
-```
-
-### 1.5 Input / Output Shapes
+### 2.4 Input / Output Shapes
 
 | Tensor | Shape | Description |
 |---|---|---|
 | Input | `(B, 8, 3, 224, 224)` | Batch of videos: 8 frames, RGB, 224x224 |
 | Backbone output | `(B*8, feat_dim)` | Per-frame features |
+| LSTM output | `(B, 8, feat_dim)` | Contextualized frame features |
 | After temporal pool | `(B, feat_dim)` | Video-level features |
-| Output logits | `(B, 2)` | Raw class scores |
+| Output logits | `(B, 16)` | Raw class scores |
 
 ---
 
-## 2. Data Pipeline
+## 3. Dataset
 
-### 2.1 Data Collection
+### 3.1 Data Collection
 
-Images are downloaded from the web using **Bing image search** (via `icrawler`). Each search keyword produces a set of images named with the `_frame_NNNN` convention so the dataset groups them as pseudo-videos.
+~8,600 images across 16 classes, downloaded from Bing image search via `icrawler`. Each keyword produces ~20 images named with the `_frame_NNNN` convention (pseudo-videos).
 
-**Categories:**
-- **Healthy:** 30 keywords (banana, salad, quinoa, salmon, avocado toast, etc.)
-- **Unhealthy:** 31 keywords (cheeseburger, pizza, fried chicken, donut, candy, etc.)
-- **Images per keyword:** 15
+- **~27 keywords per class** with diverse search terms
+- **20 images per keyword** = ~540 images per class
+- **not_food** includes hard negatives: empty plates, kitchen utensils, grocery aisles
 
-### 2.2 Dataset Class (`VideoDataset`)
-
-Custom PyTorch `Dataset` that handles multiple input formats:
-
-| Input Type | Handling |
-|---|---|
-| Pre-extracted frames (`*_frame_*.jpg`) | Groups by video stem, samples T evenly-spaced frames |
-| Video files (`.mp4`, `.avi`, `.mov`) | Decodes with OpenCV, extracts T evenly-spaced frames |
-| Standalone images | Duplicates the image T times |
-| Frame directories | Loads frames from subdirectory |
-
-**Frame sampling:**
-- Training (augment=True): Random temporal sampling from available frames
-- Validation/Test: Deterministic evenly-spaced sampling via `np.linspace`
-
-### 2.3 Data Augmentation
-
-Applied only during training:
+### 3.2 Data Augmentation (training only)
 
 | Augmentation | Parameters |
 |---|---|
@@ -127,13 +141,11 @@ Applied only during training:
 | `GaussianBlur` | kernel_size=3, sigma=(0.1, 2.0) |
 | `RandomErasing` | p=0.3, scale=(0.02, 0.2) |
 
-**Normalization (always applied):**
-- Mean: `[0.485, 0.456, 0.406]` (ImageNet)
-- Std: `[0.229, 0.224, 0.225]` (ImageNet)
+**Normalization:** ImageNet mean `[0.485, 0.456, 0.406]`, std `[0.229, 0.224, 0.225]`
 
-### 2.4 Data Splitting
+### 3.3 Data Splitting
 
-**Video-level splitting** prevents data leakage (frames from the same video never appear in both train and test):
+Video-level stratified splitting (no frame leakage):
 
 | Split | Ratio | Purpose |
 |---|---|---|
@@ -141,272 +153,90 @@ Applied only during training:
 | Validation | 15% | Early stopping, LR scheduling |
 | Test | 15% | Final evaluation |
 
-**Strategy:**
-- Stratified splitting when each class has >= 2 videos
-- Falls back to random splitting for very small datasets
-- Splits are persisted in `video_split_manifest.json` for reproducibility
-- Manifest is auto-synced when frames on disk change
-
 ---
 
-## 3. Training
-
-### 3.1 Optimizer
+## 4. Training
 
 | Parameter | Value |
 |---|---|
-| Optimizer | AdamW |
-| Learning rate | 3e-5 |
-| Weight decay | 1e-3 |
+| Optimizer | AdamW (lr=3e-5, weight_decay=1e-3) |
+| Loss | CrossEntropyLoss (label_smoothing=0.1) |
+| Class weighting | Inverse frequency per class |
 | Gradient clipping | max_norm=1.0 |
-
-### 3.2 Loss Function
-
-| Parameter | Value |
-|---|---|
-| Loss | CrossEntropyLoss |
-| Label smoothing | 0.1 |
-| Class weighting | Inverse frequency: `total / (num_classes * count_per_class)` |
-
-### 3.3 Learning Rate Schedule
-
-```
-Epochs 1-3:   LinearLR warmup (start_factor=0.1)
-Epochs 4-25:  CosineAnnealingLR (eta_min=1e-7)
-```
-
-Combined via `SequentialLR` with milestone at epoch 3.
-
-### 3.4 Early Stopping
-
-| Parameter | Value |
-|---|---|
-| Monitor | Validation loss |
-| Patience | 7 epochs |
-| Min delta | 5e-5 |
-
-### 3.5 Mixed Precision
-
-Automatic Mixed Precision (AMP) is enabled when training on CUDA:
-- Forward pass uses `torch.cuda.amp.autocast()` (float16)
-- Gradient scaling via `torch.cuda.amp.GradScaler`
-- Disabled on CPU/MPS
-
-### 3.6 Checkpointing
-
-Best model saved when validation loss improves. Checkpoint contains:
-```python
-{
-    "model_state_dict": ...,
-    "optimizer_state_dict": ...,
-    "best_val_loss": ...,
-    "epoch": ...,
-}
-```
-
-### 3.7 Default Training Configuration
-
-| Parameter | Default |
-|---|---|
-| Epochs | 25 |
+| LR schedule | LinearLR warmup (3 epochs) + CosineAnnealingLR (eta_min=1e-7) |
+| Early stopping | patience=7, min_delta=5e-5 |
+| AMP | Enabled on CUDA |
+| Epochs | 20 (notebook) / 25 (CLI default) |
 | Batch size | 8 |
-| Frames per video | 8 |
-| Image size | 224x224 |
-| Backbone | auto (ViT-B/16 on GPU, MobileViT-XXS on CPU) |
-| Temporal pool | avg |
+| Temporal pool | lstm |
 | Dropout | 0.4 |
-| Class weighting | Enabled |
-| Seed | 42 |
-
-### 3.8 Optional LR Search
-
-Lightweight hyperparameter search over learning rate candidates:
-- Candidates: `[5e-6, 1e-5, 3e-5, 5e-5, 1e-4]`
-- Runs short training (configurable epochs) per candidate
-- Selects LR with lowest validation loss
 
 ---
 
-## 4. Evaluation
+## 5. Evaluation
 
-### 4.1 Test Metrics
-
-Computed on the held-out test split:
-- **Accuracy** (overall)
-- **Precision** (macro-averaged)
-- **Recall** (macro-averaged)
-- **F1 Score** (macro-averaged)
-- **Confusion matrix**
-- **Per-class precision, recall, F1**
-- **Classification report** (scikit-learn)
-
-### 4.2 Model Validation Suite
-
-Three-stage validation to detect overfitting and data leakage:
-
-**1. Data Leakage Audit:**
-- Verifies video-level splitting is in place
-- Simulates frame-level splitting to measure potential overlap
-- Flags class imbalance (ratio > 3x)
-
-**2. K-Fold Cross-Validation:**
-- Video-grouped stratified K-fold (default 5 folds, reduced to 3 for notebooks)
-- Trains fresh model per fold
-- Reports mean/std accuracy and F1 across folds
-- Uses: lr=1e-4, weight_decay=1e-3, dropout=0.7, epochs=10
-
-**3. External Data Testing:**
-- Downloads fresh videos not in the training set
-- Evaluates model on completely unseen data
-- Benchmarks:
-  - >= 95%: Suspicious (possible overfitting)
-  - 85-95%: Realistic
-  - 70-85%: Moderate
-  - < 70%: Poor generalization
+- Accuracy, Precision, Recall, F1 (macro-averaged) at fine-grained level
+- Confusion matrix (16x16)
+- Health-level rollup: accuracy and confusion matrix at healthy/unhealthy/not_food level
+- K-fold cross-validation (video-grouped, stratified)
+- Optional external data testing
 
 ---
 
-## 5. Inference
+## 6. Export Formats
 
-### 5.1 Video Inference
-
-```python
-predict_video(model, video_path, device, transform, num_frames=8, img_size=224)
-# Returns: (class_name, confidence, latency_ms)
-```
-
-**Pipeline:**
-1. Open video with OpenCV
-2. Sample `num_frames` evenly-spaced frames
-3. Resize each frame to `img_size x img_size`
-4. Apply normalization transform
-5. Stack into tensor `(1, T, 3, H, W)`
-6. Forward pass through model
-7. Softmax for probabilities
-
-### 5.2 Webcam Inference
-
-Real-time classification from webcam feed:
-- Maintains rolling buffer of `num_frames` frames
-- Runs inference on each new frame
-- Overlays prediction, confidence, and FPS on video feed
-- Press 'q' to quit
-
----
-
-## 6. Model Export
-
-### 6.1 Export Formats
-
-| Format | File | Target | Notes |
-|---|---|---|---|
-| TorchScript | `.pt` | Mobile / embedded | `torch.jit.trace()`, optional mobile optimization |
-| ONNX | `.onnx` | Cross-platform | opset 17, dynamic batch axes, verified with onnxruntime |
-| CoreML | `.mlpackage` | iOS 15+ | Requires `coremltools`, embeds class labels |
-| TFLite | `.tflite` | Android | via `ai_edge_torch` or ONNX->TF->TFLite fallback |
-
-### 6.2 Model Card
-
-Auto-generated `model_card.json` with:
-- Model name, task, creation date
-- Input shape `(B, T, C, H, W)`
-- Normalization parameters
-- Class names
-- Exported formats
-- Evaluation metrics (if available)
-
----
-
-## 7. Hardware Support
-
-| Device | Detection | Optimizations |
+| Format | File | Target |
 |---|---|---|
-| CUDA (NVIDIA GPU) | `torch.cuda.is_available()` | cuDNN benchmark, AMP, pin_memory |
-| MPS (Apple Silicon) | `torch.backends.mps.is_available()` | Basic support |
-| CPU | Fallback | MobileViT backbone selected, num_workers capped at 2 on Windows |
+| TorchScript | `.pt` | Mobile / embedded |
+| ONNX | `.onnx` | Cross-platform (opset 17) |
+| CoreML | `.mlpackage` | iOS 15+ |
+| TFLite | `.tflite` | Android |
 
 ---
 
-## 8. Project Structure
+## 7. Project Structure
 
 ```
 src/vit_video/
-  models/
-    vit.py              # MobileViTModel architecture
-  engine/
-    trainer.py           # Training loop, optimizer, scheduler
-  data/
-    dataset.py           # VideoDataset, build_dataloaders
-    splits.py            # Video-level splitting, manifest management
-  utils/
-    hardware.py          # Device detection
-    data_utils.py        # Normalization, transforms
-    model_utils.py       # Checkpoint loading, backbone detection
-    video.py             # Frame extraction from video files
-    ytdlp_helpers.py     # YouTube download helpers (legacy)
-  generatedata.py        # Data download and frame extraction
-  train.py               # Training entry point
-  test.py                # Evaluation entry point
-  inference.py           # Video/webcam inference
-  validate_model.py      # Leakage audit, k-fold CV, external test
-  export_mobile.py       # Multi-format model export
-  upload_hf.py           # Hugging Face Hub upload
-  run_pipeline.py        # End-to-end pipeline orchestrator
-  paths.py               # Default directory constants
-  _bootstrap.py          # sys.path setup for imports
-  vit_video.ipynb        # Google Colab notebook
-  requirements.txt       # Python dependencies
+  models/vit.py              # MobileViTModel (backbone + BiLSTM + classifier)
+  engine/trainer.py           # Training loop, AdamW, LR scheduler, AMP
+  data/dataset.py             # VideoDataset, build_dataloaders
+  data/splits.py              # Video-level splitting, manifest management
+  utils/                      # Hardware, transforms, checkpoint utils
+  train.py                    # Training entry point
+  test.py                     # Evaluation entry point
+  inference.py                # Video/webcam inference
+  validate_model.py           # Leakage audit, k-fold CV, external test
+  export_mobile.py            # Multi-format model export + model card
+  upload_hf.py                # Hugging Face Hub upload
+  run_pipeline.py             # End-to-end pipeline
+  paths.py                    # Default directory constants
+  _bootstrap.py               # sys.path setup for standalone scripts
+  vit_video.ipynb             # Google Colab notebook
+  requirements.txt            # Python dependencies
 ```
 
 ---
 
-## 9. Dependencies
+## 8. Usage
 
-```
-torch>=2.0.0
-torchvision>=0.15.0
-timm>=0.9.12
-opencv-python>=4.8.0
-numpy>=1.24.0,<2.0.0
-matplotlib>=3.7.0
-scikit-learn>=1.3.0
-seaborn>=0.12.0
-tqdm>=4.65.0
-icrawler (for data download)
-onnx>=1.14.0 (optional, for ONNX export)
-onnxruntime>=1.15.0 (optional, for ONNX verification)
-huggingface-hub>=0.20.0 (optional, for HF upload)
-```
-
----
-
-## 10. Usage
-
-### Training
 ```bash
-python train.py --dataset-dir food_data/frames --epochs 25 --backbone auto
-```
+# Training
+python train.py --dataset-dir food_data/frames --epochs 25 --temporal-pool lstm
 
-### Evaluation
-```bash
+# Evaluation
 python test.py --model models/best_food_classifier.pth --dataset-dir food_data/frames
-```
 
-### Inference
-```bash
+# Inference
 python inference.py --video path/to/video.mp4 --model models/best_food_classifier.pth
 python inference.py --webcam --model models/best_food_classifier.pth
-```
 
-### Export
-```bash
+# Export
 python export_mobile.py --model models/best_food_classifier.pth --format torchscript onnx
-```
 
-### Full Pipeline
-```bash
-python run_pipeline.py --epochs 25 --batch-size 8 --backbone auto
-```
+# Validation
+python validate_model.py --dataset-dir food_data/frames --n-folds 5
 
-### Google Colab
-Open `vit_video.ipynb` in Colab -- it handles repo cloning, dependency installation, data download, training, evaluation, and export automatically.
+# Google Colab
+# Open vit_video.ipynb -- handles everything automatically.
+```
