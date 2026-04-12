@@ -143,12 +143,14 @@ def main(args):
             "(model + data load); the progress bar may stay at 0% briefly.\n"
         )
 
+    drive_checkpoint_dir = getattr(args, "drive_checkpoint_dir", None)
     history = trainer.fit(
         epochs=args.epochs,
         early_stopping_patience=args.patience,
         min_delta=args.min_delta,
         checkpoint_name=out_path.name,
         resume_from=resume_from,
+        drive_checkpoint_dir=drive_checkpoint_dir,
     )
 
     best_val_loss = min(history["val_loss"]) if history["val_loss"] else float("inf")

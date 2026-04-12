@@ -11,9 +11,24 @@ Fine-grained video/image classification model for food content moderation. Class
 
 ---
 
-## 1. Classes
+## 1. Why MobileViT-XXS
 
-### 1.1 Fine-Grained Classes (16)
+MobileViT combines the local feature extraction of MobileNetV2 with the global attention of Vision Transformers in a single lightweight architecture. We chose the XXS variant for several reasons:
+
+- **Size:** ~1.3M parameters -- small enough for mobile/edge deployment while still accurate
+- **Speed:** Designed for real-time inference on mobile CPUs (no GPU required on device)
+- **Accuracy:** Outperforms pure CNNs of similar size on ImageNet thanks to self-attention
+- **Temporal support:** Feature vectors are fixed-size (320-dim), making them easy to feed into a BiLSTM for video-level temporal aggregation -- something heavier ViT models would make impractical on-device
+- **Pretrained on ImageNet:** Strong transfer learning baseline for food classification
+- **Export-friendly:** Compatible with TorchScript, ONNX, CoreML, and TFLite
+
+The BiLSTM on top allows the model to learn temporal dependencies between frames (e.g., a video panning across a plate of food), which a single-frame classifier would miss.
+
+---
+
+## 2. Classes
+
+### 2.1 Fine-Grained Classes (16)
 
 | # | Class | Health Group | Description |
 |---|---|---|---|
@@ -34,7 +49,7 @@ Fine-grained video/image classification model for food content moderation. Class
 | 15 | `sugary_drinks` | unhealthy | Soda, milkshakes, energy drinks, frappuccinos |
 | 16 | `not_food` | not_food | People, animals, objects, nature, food-adjacent items |
 
-### 1.2 Health-Label Rollup
+### 2.2 Health-Label Rollup
 
 The 16 fine-grained predictions are mapped to 3 moderation groups for the API:
 
@@ -50,11 +65,20 @@ HEALTH_LABELS = {
 }
 ```
 
+### 2.3 Why 16 Classes Instead of 3
+
+Training on 16 fine-grained classes and rolling up to 3 health groups outperforms training directly on 3 classes because:
+
+- The model learns **discriminative features** for each food type (burgers look different from pizza)
+- Reduces confusion between visually similar healthy/unhealthy items (e.g., grilled chicken vs fried chicken)
+- The `not_food` class benefits from explicit negative examples rather than being a catch-all
+- Fine-grained predictions are more interpretable for debugging and auditing
+
 ---
 
-## 2. Model Architecture
+## 3. Model Architecture
 
-### 2.1 High-Level Pipeline
+### 3.1 High-Level Pipeline
 
 ```
 Video (T frames)
@@ -86,19 +110,20 @@ Video (T frames)
 Output: (B, 16) logits
 ```
 
-### 2.2 Backbone Options
+### 3.2 Backbone Options
 
-| Backbone | Feature Dim | Source | When Selected |
-|---|---|---|---|
-| `mobilevit_xxs` | 320 | timm | CPU fallback (default) |
-| `mobilevit_xs` | 384 | timm | Manual selection |
-| `mobilevit_s` | 640 | timm | Manual selection |
-| `vit_b_16` | 768 | torchvision / timm | GPU available (default) |
-| `vit_b_32` | 768 | torchvision / timm | Manual selection |
-| `vit_l_16` | 1024 | torchvision / timm | Manual selection |
-| `vit_h_14` | 1280 | torchvision / timm | Manual selection |
+| Backbone | Feature Dim | Params | Source | When Selected |
+|---|---|---|---|---|
+| `mobilevit_xxs` | 320 | ~1.3M | timm | CPU fallback (default) |
+| `mobilevit_xs` | 384 | ~2.3M | timm | Manual selection |
+| `mobilevit_s` | 640 | ~5.6M | timm | Manual selection |
+| `vit_b_16` | 768 | ~86M | torchvision / timm | GPU available (default) |
+| `vit_b_32` | 768 | ~88M | torchvision / timm | Manual selection |
+| `vit_l_16` | 1024 | ~304M | torchvision / timm | Manual selection |
 
-### 2.3 Temporal Pooling Modes
+The `auto` backbone setting selects `mobilevit_xxs` on CPU and `vit_b_16` on GPU. For mobile deployment, `mobilevit_xxs` is always used regardless of training backbone.
+
+### 3.3 Temporal Pooling Modes
 
 | Mode | Operation | Description |
 |---|---|---|
@@ -107,7 +132,7 @@ Output: (B, 16) logits
 | `max` | `feats.max(dim=1)` | Max pooling |
 | `conv1d` | `Conv1d(feat_dim, feat_dim, kernel=3) -> mean` | Learned temporal convolution |
 
-### 2.4 Input / Output Shapes
+### 3.4 Input / Output Shapes
 
 | Tensor | Shape | Description |
 |---|---|---|
@@ -119,17 +144,23 @@ Output: (B, 16) logits
 
 ---
 
-## 3. Dataset
+## 4. Dataset
 
-### 3.1 Data Collection
+### 4.1 Data Collection
 
 ~8,600 images across 16 classes, downloaded from Bing image search via `icrawler`. Each keyword produces ~20 images named with the `_frame_NNNN` convention (pseudo-videos).
 
-- **~27 keywords per class** with diverse search terms
+- **~27 keywords per class** with diverse search terms (51 for not_food)
 - **20 images per keyword** = ~540 images per class
-- **not_food** includes hard negatives: empty plates, kitchen utensils, grocery aisles
+- **not_food** includes hard negatives: empty plates, kitchen utensils, grocery aisles, people, pets
 
-### 3.2 Data Augmentation (training only)
+Alternatively, real YouTube videos can be downloaded via `generatedata.py` using `yt-dlp`, then frames are extracted with ffmpeg.
+
+### 4.2 Data Source: HuggingFace
+
+The dataset is hosted on HuggingFace at `maia2000/food-classifier-dataset` so teammates can download it directly instead of scraping. The notebook defaults to HuggingFace download (`USE_HF_DATASET = True`).
+
+### 4.3 Data Augmentation (training only)
 
 | Augmentation | Parameters |
 |---|---|
@@ -143,9 +174,9 @@ Output: (B, 16) logits
 
 **Normalization:** ImageNet mean `[0.485, 0.456, 0.406]`, std `[0.229, 0.224, 0.225]`
 
-### 3.3 Data Splitting
+### 4.4 Data Splitting
 
-Video-level stratified splitting (no frame leakage):
+Video-level stratified splitting (no frame leakage between splits):
 
 | Split | Ratio | Purpose |
 |---|---|---|
@@ -153,53 +184,113 @@ Video-level stratified splitting (no frame leakage):
 | Validation | 15% | Early stopping, LR scheduling |
 | Test | 15% | Final evaluation |
 
----
-
-## 4. Training
-
-| Parameter | Value |
-|---|---|
-| Optimizer | AdamW (lr=3e-5, weight_decay=1e-3) |
-| Loss | CrossEntropyLoss (label_smoothing=0.1) |
-| Class weighting | Inverse frequency per class |
-| Gradient clipping | max_norm=1.0 |
-| LR schedule | LinearLR warmup (3 epochs) + CosineAnnealingLR (eta_min=1e-7) |
-| Early stopping | patience=7, min_delta=5e-5 |
-| AMP | Enabled on CUDA |
-| Epochs | 20 (notebook) / 25 (CLI default) |
-| Batch size | 8 |
-| Temporal pool | lstm |
-| Dropout | 0.4 |
+The split manifest (`video_split_manifest.json`) ensures all frames from the same video stay in the same split, preventing data leakage.
 
 ---
 
-## 5. Evaluation
+## 5. Training
 
-- Accuracy, Precision, Recall, F1 (macro-averaged) at fine-grained level
+| Parameter | Value | Why |
+|---|---|---|
+| Optimizer | AdamW (lr=3e-5, weight_decay=1e-3) | AdamW decouples weight decay; low LR for fine-tuning pretrained backbone |
+| Loss | CrossEntropyLoss (label_smoothing=0.1) | Smoothing prevents overconfident predictions, improves generalization |
+| Class weighting | Inverse frequency per class | Compensates for imbalanced classes (not_food has more samples) |
+| Gradient clipping | max_norm=1.0 | Prevents exploding gradients during LSTM training |
+| LR schedule | LinearLR warmup (3 epochs) + CosineAnnealingLR (eta_min=1e-7) | Warmup avoids destroying pretrained weights; cosine decay is smooth |
+| Early stopping | patience=7, min_delta=5e-5 | Stops training when validation loss plateaus |
+| AMP | Enabled on CUDA | Mixed precision for faster training on GPU |
+| Epochs | 20 (notebook) / 25 (CLI) | Early stopping usually triggers before max epochs |
+| Batch size | 8 | Fits in Colab GPU memory with video frame sequences |
+| Dropout | 0.4 | Regularization before the classifier head |
+
+### 5.1 Google Drive Checkpoints
+
+When training on Google Colab, checkpoints are automatically synced to Google Drive (`/content/drive/MyDrive/whispr-checkpoints/`) after each improvement. If the Colab runtime disconnects, training resumes from the last best checkpoint.
+
+---
+
+## 6. Evaluation
+
+- Precision, Recall, F1 (macro-averaged) at fine-grained level -- **do not rely on accuracy alone**
 - Confusion matrix (16x16)
-- Health-level rollup: accuracy and confusion matrix at healthy/unhealthy/not_food level
+- Health-level rollup: precision/recall/F1 and confusion matrix at healthy/unhealthy/not_food level
 - K-fold cross-validation (video-grouped, stratified)
 - Optional external data testing
 
 ---
 
-## 6. Export Formats
+## 7. Export & Mobile Deployment
 
-| Format | File | Target |
-|---|---|---|
-| TorchScript | `.pt` | Mobile / embedded |
-| ONNX | `.onnx` | Cross-platform (opset 17) |
-| CoreML | `.mlpackage` | iOS 15+ |
-| TFLite | `.tflite` | Android |
+### 7.1 Export Formats
+
+| Format | File | Target | Why |
+|---|---|---|---|
+| TorchScript | `.pt` | Mobile / embedded | Native PyTorch, no extra dependencies |
+| ONNX | `.onnx` | Cross-platform (opset 17) | Universal runtime (Android, iOS, web, server) |
+| CoreML | `.mlpackage` | iOS 15+ | Apple Neural Engine hardware acceleration |
+| TFLite | `.tflite` | Android | Optimized for Android NN API |
+
+### 7.2 Conversion Pipeline
+
+```
+best_food_classifier.pth  (PyTorch checkpoint)
+  |
+  v
+[Load model + state dict]
+  |
+  v
+[export_mobile.py]
+  |  --format torchscript onnx coreml tflite
+  |
+  +---> model.pt         (TorchScript, ~5 MB)
+  +---> model.onnx       (ONNX opset 17, ~5 MB)
+  +---> model.mlpackage  (CoreML, iOS 15+)
+  +---> model.tflite     (TFLite via onnx2tf)
+```
+
+### 7.3 How to Convert
+
+```bash
+# Export all formats
+python export_mobile.py --model models/best_food_classifier.pth --format torchscript onnx coreml tflite
+
+# Export specific formats
+python export_mobile.py --model models/best_food_classifier.pth --format torchscript onnx
+
+# With custom output directory
+python export_mobile.py --model models/best_food_classifier.pth --output-dir exported_models/
+```
+
+### 7.4 Mobile Inference
+
+On mobile, the model expects:
+- **Input:** `float32` tensor of shape `(1, 8, 3, 224, 224)` -- 8 RGB frames, normalized with ImageNet stats
+- **Output:** `float32` tensor of shape `(1, 16)` -- logits for each class (apply softmax for probabilities)
+- **Preprocessing:** Resize each frame to 224x224, normalize with mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+
+For single-image inference (no video), duplicate the image 8 times to fill the frame sequence.
+
+Example mobile inference flow:
+
+```
+1. Capture 8 evenly-spaced frames from video (or duplicate single image x8)
+2. Resize each to 224x224
+3. Normalize with ImageNet mean/std
+4. Stack into tensor [1, 8, 3, 224, 224]
+5. Run model (TorchScript / ONNX / CoreML / TFLite)
+6. Apply softmax to output [1, 16]
+7. Map argmax to class name
+8. Map class name to health group via HEALTH_LABELS
+```
 
 ---
 
-## 7. Project Structure
+## 8. Project Structure
 
 ```
 src/vit_video/
   models/vit.py              # MobileViTModel (backbone + BiLSTM + classifier)
-  engine/trainer.py           # Training loop, AdamW, LR scheduler, AMP
+  engine/trainer.py           # Training loop, AdamW, LR scheduler, AMP, Drive sync
   data/dataset.py             # VideoDataset, build_dataloaders
   data/splits.py              # Video-level splitting, manifest management
   utils/                      # Hardware, transforms, checkpoint utils
@@ -209,16 +300,18 @@ src/vit_video/
   validate_model.py           # Leakage audit, k-fold CV, external test
   export_mobile.py            # Multi-format model export + model card
   upload_hf.py                # Hugging Face Hub upload
-  run_pipeline.py             # End-to-end pipeline
+  generatedata.py             # YouTube video download + frame extraction
+  run_pipeline.py             # End-to-end pipeline (download -> train -> test -> export)
   paths.py                    # Default directory constants
   _bootstrap.py               # sys.path setup for standalone scripts
   vit_video.ipynb             # Google Colab notebook
   requirements.txt            # Python dependencies
+  TECHNICAL.md                # This file
 ```
 
 ---
 
-## 8. Usage
+## 9. Usage
 
 ```bash
 # Training
@@ -237,6 +330,18 @@ python export_mobile.py --model models/best_food_classifier.pth --format torchsc
 # Validation
 python validate_model.py --dataset-dir food_data/frames --n-folds 5
 
+# Full pipeline
+python run_pipeline.py --dataset-dir food_data --epochs 25
+
 # Google Colab
 # Open vit_video.ipynb -- handles everything automatically.
 ```
+
+---
+
+## 10. HuggingFace Repos
+
+| Repo | Type | Content |
+|---|---|---|
+| `maia2000/food-classifier-dataset` | dataset | 16-class video frames (`frames/<class>/<video>_frame_NNNN.jpg`) |
+| `maia2000/food-classifier` | model | Exported models (TorchScript, ONNX, CoreML, TFLite) |
