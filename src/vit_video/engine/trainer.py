@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
@@ -70,7 +71,7 @@ class Trainer:
         for x, y in tqdm(self.train_loader, desc="train", leave=False):
             x, y = x.to(self.device), y.to(self.device)
             if self.use_amp:
-                with torch.cuda.amp.autocast():
+                with torch.amp.autocast("cuda"):
                     logits = self.model(x)
                     loss = self.criterion(logits, y)
                 self.optimizer.zero_grad()
@@ -102,7 +103,7 @@ class Trainer:
             for x, y in tqdm(self.val_loader, desc="val", leave=False):
                 x, y = x.to(self.device), y.to(self.device)
                 if self.use_amp:
-                    with torch.cuda.amp.autocast():
+                    with torch.amp.autocast("cuda"):
                         logits = self.model(x)
                         loss = self.criterion(logits, y)
                 else:
@@ -121,6 +122,7 @@ class Trainer:
         min_delta: float = 1e-4,
         checkpoint_name: str = "best_mobilevit.pth",
         resume_from: Optional[Path] = None,
+        drive_checkpoint_dir: Optional[str] = None,
     ) -> Dict[str, List[float]]:
         best_val_loss = float("inf")
         patience_counter = 0
@@ -175,6 +177,11 @@ class Trainer:
                     "epoch": epoch,
                 }, ckpt)
                 print(f"Saved model to {ckpt} (val_loss={best_val_loss:.4f})")
+                if drive_checkpoint_dir:
+                    drive_ckpt = Path(drive_checkpoint_dir) / checkpoint_name
+                    drive_ckpt.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(str(ckpt), str(drive_ckpt))
+                    print(f"Synced checkpoint to Drive: {drive_ckpt}")
             else:
                 patience_counter += 1
                 print(f"No improvement (patience {patience_counter}/{early_stopping_patience})")

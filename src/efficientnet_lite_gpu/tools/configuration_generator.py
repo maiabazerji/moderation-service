@@ -15,7 +15,7 @@ def config(model_name : str):
 
     cfg = {
         "train_config": {
-            "training_divice" : device,
+            "training_device" : device,
             "mixed_precision" : False,
             "dataset_dir" : "train/dataset",
             "results_dir" : "train/results",
@@ -63,7 +63,7 @@ def config(model_name : str):
         },
         "sys_config": {
             "disable_XLA_logs" : True,
-            "tf_fore_gpu_allow_growth" : True,
+            "tf_force_gpu_allow_growth" : True,
         },
         "compilation_config": {
             "compiler" : "gcc",

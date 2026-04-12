@@ -1,7 +1,12 @@
 import sys
 import pkg_resources
 from pathlib import Path
-from .tools_nvidia_cuda import *
+import tensorflow as tf
+from .tools_nvidia_cuda import (
+    check_nvidia_driver_and_cuda,
+    check_nvcc,
+    check_tf_cuda_build_info,
+)
 
 RED = "\033[91m"
 GREEN = "\033[92m"
@@ -54,11 +59,11 @@ def check_requirement(requirement_file="requirements.txt"):
     print("Environment check complete.\n")
 
 def check_python_version():
-    if sys.version >= "3.10":
-        print(f"{GREEN}✅ Python version: {sys.version} OK")
+    if sys.version_info >= (3, 10):
+        print(f"{GREEN}✅ Python version: {sys.version} OK{RESET}")
     else:
-        print(f"{RED}❌ Python version: {sys.version} NOT OK")
-        print(f"{RED} ------------- Python version requirement >= 3.11 -------------------")
+        print(f"{RED}❌ Python version: {sys.version} NOT OK{RESET}")
+        print(f"{RED}Python >= 3.10 required{RESET}")
         sys.exit(1)
 
 def check_dataset_dir(root: str | Path, sub: str | None = None):
@@ -110,7 +115,7 @@ def _scan_bad_images(root_dir: str | Path):
 
         try:
             img_bytes = tf.io.read_file(str(p))
-            _ = tf.image.decode_image(img_bytes)  # 尝试解码
+            _ = tf.image.decode_image(img_bytes)
         except Exception as e:
             print(f"[Error decode] {p} -> {e}")
             bad_files.append(p)
@@ -123,18 +128,13 @@ def check_train_dataset_dir(cfg):
     dataset_dir = cfg["train_config"]["dataset_dir"]
 
     train_dataset_dir = Path.cwd() / dataset_dir / cfg["train_config"]["train_dir"]
-    # val_dataset_dir = Path.cwd() / dataset_dir/ cfg["train_config"]["val_dir"]
     test_dataset_dir = Path.cwd() / dataset_dir / cfg["train_config"]["test_dir"]
 
     ensure_dir_writable(train_dataset_dir)
-    # ensure_dir_writable(val_dataset_dir)
     ensure_dir_writable(test_dataset_dir)
 
     check_dataset_dir(train_dataset_dir)
     count_images_in_folder(train_dataset_dir, recursive=True)
-
-    # check_dataset_dir(val_dataset_dir)
-    # check_dataset_dir(val_dataset_dir , recursive=True)
 
     check_dataset_dir(test_dataset_dir)
     count_images_in_folder(test_dataset_dir, recursive=True)

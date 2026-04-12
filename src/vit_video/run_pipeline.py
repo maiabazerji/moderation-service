@@ -54,7 +54,7 @@ def _raw_videos_have_mp4(dataset_dir: Path, categories: dict) -> bool:
 
 def _run_extract_frames(args: argparse.Namespace) -> Path:
     """Extract jpg frames from ``raw_videos/<class>/*.mp4`` into ``frames/<class>/``."""
-    from generatedata import extract_frames, load_categories, setup_folders
+    from vit_video.generatedata import extract_frames, load_categories, setup_folders
 
     dataset_dir = Path(args.dataset_dir)
     categories = load_categories(args.categories_json)
@@ -73,7 +73,7 @@ def step_download(args: argparse.Namespace) -> Path:
     """Step 1: Download YouTube videos and extract frames."""
     print("\n[1/5] Data download (YouTube + frame extraction)")
 
-    from generatedata import load_categories, setup_folders, download_web_videos
+    from vit_video.generatedata import load_categories, setup_folders, download_web_videos
 
     dataset_dir = Path(args.dataset_dir)
     categories = load_categories(args.categories_json)
@@ -93,7 +93,7 @@ def step_train(args: argparse.Namespace, frames_dir: Path, split_manifest_path: 
     print("\n[2/5] Training")
 
     _require_torch()
-    from train import main as train_main
+    from vit_video.train import main as train_main
 
     model_path = Path(args.output_model).resolve()
 
@@ -138,7 +138,7 @@ def step_test(args: argparse.Namespace, model_path: Path, frames_dir: Path, spli
     """Step 3: Evaluate the model."""
     print("\n[3/5] Test")
 
-    from test import main as test_main
+    from vit_video.test import main as test_main
 
     results_dir = Path(args.results_dir)
 
@@ -172,7 +172,7 @@ def step_export(args: argparse.Namespace, model_path: Path, results_file: Path) 
     """Step 4: Export to mobile formats."""
     print("\n[4/5] Export")
 
-    from export_mobile import main as export_main
+    from vit_video.export_mobile import main as export_main
 
     export_dir = Path(args.export_dir)
     metrics_path = model_path.with_name(model_path.stem + "_training_metrics.json")
@@ -201,7 +201,7 @@ def step_upload_hf(args: argparse.Namespace) -> None:
     """Step 5: Upload exported models to Hugging Face Hub."""
     print("\n[5/5] Hugging Face upload")
 
-    from upload_hf import main as upload_main
+    from vit_video.upload_hf import main as upload_main
 
     upload_args = _make_namespace(
         repo_id=args.hf_repo_id,
@@ -313,7 +313,7 @@ def main() -> None:
     extracted_from_raw_only = False
 
     if not args.skip_download:
-        from generatedata import load_categories
+        from vit_video.generatedata import load_categories
 
         categories = load_categories(args.categories_json)
         raw_has_mp4 = _raw_videos_have_mp4(dataset_dir, categories)
