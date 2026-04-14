@@ -60,10 +60,11 @@ data_augmentation = tf.keras.Sequential([
     tf.keras.layers.RandomContrast(0.1),
 ], name="data_augmentation")
 
-base_model = tf.keras.applications.EfficientNetB0(
+base_model = tf.keras.applications.MobileNetV2(
     include_top=False,
     weights="imagenet",
-    input_shape=IMG_SIZE + (3,)
+    input_shape=IMG_SIZE + (3,),
+    alpha=0.35
 )
 
 base_model.trainable = False
