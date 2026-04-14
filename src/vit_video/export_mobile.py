@@ -15,7 +15,6 @@ except ImportError:
 
 from vit_video.paths import PACKAGE_ROOT
 from vit_video.utils import print_device_info, parse_normalization_values, load_model_from_checkpoint
-from torch.utils.mobile_optimizer import optimize_for_mobile as _optimize
 
 
 def export_torchscript(
@@ -32,13 +31,23 @@ def export_torchscript(
 
     if optimize_for_mobile:
         try:
+            from torch.utils.mobile_optimizer import optimize_for_mobile as _optimize
             traced_model = _optimize(traced_model)
             print("  Applied mobile optimizations")
-        except ImportError:
-            pass
+        except Exception as e:
+            print(f"  Mobile optimization skipped: {e}")
 
     traced_model.save(str(output_path))
     print(f"  Saved to {output_path} ({output_path.stat().st_size / 1024 / 1024:.2f} MB)")
+
+    # PyTorch Mobile Lite Interpreter (.ptl) — optimized for on-device Android/iOS
+    ptl_path = output_path.with_suffix(".ptl")
+    try:
+        traced_model._save_for_lite_interpreter(str(ptl_path))
+        print(f"  Saved Lite Interpreter to {ptl_path} "
+              f"({ptl_path.stat().st_size / 1024 / 1024:.2f} MB)")
+    except Exception as e:
+        print(f"  Lite Interpreter save skipped: {e}")
 
     loaded = torch.jit.load(str(output_path))
     test_out = loaded(example_input)
@@ -56,7 +65,10 @@ def export_onnx(
     model = model.cpu()
 
     example_input = torch.randn(*input_shape)
-    dynamic_axes = {"input": {0: "batch_size"}, "output": {0: "batch_size"}}
+    dynamic_axes = {
+        "input": {0: "batch_size", 1: "num_frames"},
+        "output": {0: "batch_size"},
+    }
 
     torch.onnx.export(
         model, example_input, str(output_path),
@@ -140,8 +152,10 @@ def export_tflite(
 
         converter = tf.lite.TFLiteConverter.from_saved_model(str(saved_model_dir))
         if quantize:
+            # Float16 weight quantization: ~2x smaller, no accuracy loss, no rep dataset needed.
+            # Full int8 requires a representative dataset, which isn't wired here.
             converter.optimizations = [tf.lite.Optimize.DEFAULT]
-            converter.target_spec.supported_types = [tf.int8]
+            converter.target_spec.supported_types = [tf.float16]
 
         with open(output_path, "wb") as f:
             f.write(converter.convert())
@@ -153,6 +167,70 @@ def export_tflite(
     except Exception as e:
         print(f"  Error during ONNX->TFLite conversion: {e}")
         return None
+
+
+def export_tfjs(
+    model: torch.nn.Module, output_path: Path,
+    input_shape: Tuple[int, ...] = (1, 8, 3, 224, 224),
+    quantize: bool = True,
+) -> Optional[Path]:
+    """PyTorch -> ONNX -> TF SavedModel -> TFJS (browser).
+
+    ⚠️ EXPERIMENTAL for ViT/MobileViT. The `onnx-tf` bridge does not cleanly
+    support every transformer op (multi-head attention, dynamic reshapes,
+    LayerNorm/GELU combos), and `tensorflowjs_converter` drops or rewrites
+    some of the resulting ops. Expect partial failures, op-not-supported
+    errors in the browser, or numerically wrong outputs.
+
+    For a browser-deployable food moderation model, use MobileNetV3 (Keras
+    native path, see src/mobilenet_v3_small). That's a pure CNN and converts
+    cleanly with `tensorflowjs.converters.save_keras_model`.
+    """
+    print(f"\n[TFJS] Exporting to {output_path} (experimental for transformer models)...")
+    try:
+        import onnx
+        from onnx_tf.backend import prepare
+        import tensorflowjs as tfjs
+    except ImportError as e:
+        print(f"  Skipping TFJS: missing dependency ({e}). "
+              f"Install: pip install tensorflowjs onnx onnx-tf tensorflow")
+        return None
+
+    model.eval().cpu()
+    onnx_path = output_path.parent / (output_path.name + ".onnx")
+    try:
+        export_onnx(model, onnx_path, input_shape)
+    except Exception as e:
+        print(f"  TFJS: ONNX stage failed ({e}). ViT attention ops may need a newer opset.")
+        return None
+
+    saved_model_dir = output_path.parent / (output_path.name + "_tf_saved_model")
+    try:
+        prepare(onnx.load(str(onnx_path))).export_graph(str(saved_model_dir))
+    except Exception as e:
+        print(f"  TFJS: ONNX->TF stage failed ({e}). "
+              f"onnx-tf commonly chokes on MultiHeadAttention / dynamic reshape. "
+              f"Consider training a CNN if you need browser deployment.")
+        return None
+
+    output_path.mkdir(parents=True, exist_ok=True)
+    try:
+        quant_map = {"uint8": "*"} if quantize else None
+        tfjs.converters.convert_tf_saved_model(
+            str(saved_model_dir), str(output_path),
+            quantization_dtype_map=quant_map,
+            skip_op_check=False,
+        )
+    except Exception as e:
+        print(f"  TFJS conversion failed: {e}")
+        print(f"  This is expected for transformer architectures. Use MobileNetV3 for browser deployment.")
+        return None
+
+    total = sum(f.stat().st_size for f in output_path.rglob("*") if f.is_file())
+    print(f"  Saved to {output_path}/ ({total / 1024 / 1024:.2f} MB, "
+          f"{'uint8-quantized' if quantize else 'float32'})")
+    print(f"  ⚠️ Validate numerical parity against the PyTorch model before shipping.")
+    return output_path
 
 
 def create_model_card(
@@ -208,6 +286,8 @@ def main(args) -> None:
 
     formats = args.format
     if "all" in formats:
+        # 'tfjs' intentionally excluded from 'all' -- transformer ops don't
+        # convert cleanly through onnx-tf. Pass --format tfjs explicitly to try it.
         formats = ["torchscript", "onnx", "coreml", "tflite"]
 
     input_shape = (1, args.num_frames, 3, args.img_size, args.img_size)
@@ -224,6 +304,12 @@ def main(args) -> None:
         model_path=model_path, num_classes=args.num_classes,
         model_name=args.backbone, device=torch.device("cpu"),
     )
+    resolved_backbone = getattr(model, "model_name", args.backbone)
+
+    if "tfjs" in formats and "mobilevit" not in str(resolved_backbone).lower():
+        print(f"\n[WARN] TFJS export requested with backbone={resolved_backbone!r}. "
+              f"Browser bundle will be large (~330 MB for vit_b_16). "
+              f"Train on mobilevit_xxs (~1.3M params) for a web-deployable model.")
 
     exported = []
     exporters = {
@@ -231,6 +317,7 @@ def main(args) -> None:
         "onnx": lambda: export_onnx(model, output_dir / f"{model_path.stem}.onnx", input_shape),
         "coreml": lambda: export_coreml(model, output_dir / f"{model_path.stem}.mlpackage", input_shape, classes),
         "tflite": lambda: export_tflite(model, output_dir / f"{model_path.stem}.tflite", input_shape, args.quantize),
+        "tfjs": lambda: export_tfjs(model, output_dir / f"{model_path.stem}_tfjs", input_shape, args.quantize),
     }
     for fmt in formats:
         try:
@@ -265,7 +352,7 @@ def main(args) -> None:
             print(f"  [WARN] Could not read training metrics: {e}")
 
     create_model_card(
-        output_dir=output_dir, model_name=args.backbone,
+        output_dir=output_dir, model_name=resolved_backbone,
         num_classes=args.num_classes, classes=classes,
         input_shape=input_shape, exported_formats=exported,
         checkpoint_path=model_path,
@@ -287,7 +374,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--output-dir", type=str, default="exported_models")
     parser.add_argument("--format", type=str, nargs="+", default=["torchscript", "onnx"],
-                        choices=["torchscript", "onnx", "coreml", "tflite", "all"])
+                        choices=["torchscript", "onnx", "coreml", "tflite", "tfjs", "all"])
     parser.add_argument("--num-classes", type=int, default=3)
     parser.add_argument("--classes", type=str, default="healthy,other,unhealthy")
     parser.add_argument("--backbone", type=str, default="auto")

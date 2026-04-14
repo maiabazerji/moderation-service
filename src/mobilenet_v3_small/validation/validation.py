@@ -1,3 +1,4 @@
+import logging
 import sys
 from pathlib import Path
 
@@ -6,6 +7,8 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+
+logger = logging.getLogger(__name__)
 
 # Import the canonical health-label mapping (src/common/health_labels.py).
 try:
@@ -32,10 +35,10 @@ def _load_model_and_classes(cfg: dict):
         class_mode="categorical"
     )
     class_names = list(train_gen.class_indices.keys())
-    print("Classes:", class_names)
+    logger.info("Classes: %s", class_names)
 
     model = load_model(str(model_path))
-    print("Model loaded:", model_path)
+    logger.info("Model loaded: %s", model_path)
 
     return model, class_names
 
@@ -43,8 +46,7 @@ def _load_model_and_classes(cfg: dict):
 def preprocess_image(img_path):
     img = cv2.imread(img_path)
     if img is None:
-        raise FileNotFoundError(
-            f"Impossible de lire l'image : {img_path}.")
+        raise FileNotFoundError(f"Cannot read image: {img_path}")
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img = cv2.resize(img, (224, 224))
     img = img.astype("float32")
@@ -60,7 +62,7 @@ def predict_image(model, class_names, img_path, threshold=0.9):
     best_class = class_names[best_idx]
 
     for name, p in zip(class_names, preds):
-        print(f"  {name}: {p:.2%}")
+        logger.info("  %s: %.2f%%", name, p * 100)
 
     is_unhealthy = best_class in UNHEALTHY_CLASSES
 
@@ -82,8 +84,7 @@ def predict_image(model, class_names, img_path, threshold=0.9):
 def show_prediction(model, class_names, img_path, threshold=0.9):
     img = cv2.imread(img_path)
     if img is None:
-        raise FileNotFoundError(
-            f"Impossible de lire l'image : {img_path}.")
+        raise FileNotFoundError(f"Cannot read image: {img_path}")
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     result = predict_image(model, class_names, img_path, threshold=threshold)
     plt.imshow(img)
@@ -97,15 +98,15 @@ def run(cfg: dict):
 
     eval_dir = Path.cwd() / "validation" / "images"
     if not eval_dir.exists():
-        print(f"No validation images directory found at {eval_dir}")
+        logger.warning("No validation images directory found at %s", eval_dir)
         return
 
     image_exts = {".jpg", ".jpeg", ".png", ".bmp"}
     images = [p for p in eval_dir.iterdir() if p.suffix.lower() in image_exts]
     if not images:
-        print("No images found in validation/images/")
+        logger.warning("No images found in validation/images/")
         return
 
     for img_path in images:
-        print(f"\n--- {img_path.name} ---")
+        logger.info("--- %s ---", img_path.name)
         show_prediction(model, class_names, str(img_path), threshold=0.4)

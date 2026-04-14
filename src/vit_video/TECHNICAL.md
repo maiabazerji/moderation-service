@@ -2,346 +2,212 @@
 
 ## Overview
 
-Fine-grained video/image classification model for food content moderation. Classifies into **16 categories** across 3 health groups using a MobileViT-XXS backbone with a bidirectional LSTM for temporal aggregation.
+Video / multi-frame classifier for food content moderation. Takes a sequence of 8 frames sampled from a clip (or a single image duplicated 8×), encodes each frame with a Vision Transformer backbone, and aggregates temporally with a small head (default: bidirectional LSTM).
 
-**Framework:** PyTorch
-**Task:** 16-class classification (8 healthy + 7 unhealthy + 1 not_food)
-**Input:** Video or sequence of frames
-**Output:** Class probabilities (softmax over 16 classes), rollup to healthy/unhealthy/not_food
+| | |
+|---|---|
+| **Framework** | PyTorch |
+| **Backbone (GPU)** | `vit_b_16` (torchvision, ImageNet-pretrained) — ~86 M params |
+| **Backbone (CPU)** | `mobilevit_xxs` — ~1.3 M params, mobile-friendly fallback |
+| **Temporal head** | BiLSTM (default) — also supports `avg`, `max`, `conv1d` via `--pool` |
+| **Input** | 8 RGB frames × 224×224 |
+| **Output** | Softmax over the dataset's class set (binary or 16-class depending on training data) |
+| **Mobile formats** | `.ptl` PyTorch Mobile Lite (canonical on-device), `.pt` TorchScript, `.onnx`, `.tflite` (via `ai_edge_torch`), optional CoreML `.mlpackage`. **TFJS is not supported for this model — see §4a; use MobileNetV3 for browser.** |
+| **HF model repos** | [`maia2000/food-classifier`](https://huggingface.co/maia2000/food-classifier), [`maia2000/food-classifier-binary-vit`](https://huggingface.co/maia2000/food-classifier-binary-vit) |
+| **HF dataset repo** | [`maia2000/food-classifier-dataset`](https://huggingface.co/datasets/maia2000/food-classifier-dataset) |
 
 ---
 
-## 1. Why MobileViT-XXS
+## 1. Why ViT + temporal head
 
-MobileViT combines the local feature extraction of MobileNetV2 with the global attention of Vision Transformers in a single lightweight architecture. We chose the XXS variant for several reasons:
-
-- **Size:** ~1.3M parameters -- small enough for mobile/edge deployment while still accurate
-- **Speed:** Designed for real-time inference on mobile CPUs (no GPU required on device)
-- **Accuracy:** Outperforms pure CNNs of similar size on ImageNet thanks to self-attention
-- **Temporal support:** Feature vectors are fixed-size (320-dim), making them easy to feed into a BiLSTM for video-level temporal aggregation -- something heavier ViT models would make impractical on-device
-- **Pretrained on ImageNet:** Strong transfer learning baseline for food classification
-- **Export-friendly:** Compatible with TorchScript, ONNX, CoreML, and TFLite
-
-The BiLSTM on top allows the model to learn temporal dependencies between frames (e.g., a video panning across a plate of food), which a single-frame classifier would miss.
+- **Self-attention** captures long-range relationships across an image (and across frames once temporally aggregated). Useful when the discriminating cue isn't local — e.g. judging a whole plate of food vs a small fried element.
+- **Backbone auto-selects**: `vit_b_16` on CUDA, `mobilevit_xxs` on CPU. The training script picks based on `torch.cuda.is_available()`.
+- **Pluggable temporal head** (`--pool {bilstm,avg,max,conv1d}`) lets you trade compute for temporal modeling. BiLSTM gives the best results in our runs but `avg` is essentially free.
+- **Video-aware** — duplicates a single image 8× when given still input, so the same model serves images and clips.
 
 ---
 
 ## 2. Classes
 
-### 2.1 Fine-Grained Classes (16)
+The classifier head dimension is **inferred from the dataset directory** at training time. The two operating modes:
 
-| # | Class | Health Group | Description |
-|---|---|---|---|
-| 1 | `fruits` | healthy | Whole fruits, fruit bowls, sliced fruit |
-| 2 | `vegetables` | healthy | Cooked and raw vegetables |
-| 3 | `salads` | healthy | Green salads, grain salads, mixed salads |
-| 4 | `seafood` | healthy | Grilled/baked fish, sushi, shrimp, shellfish |
-| 5 | `grilled_meat` | healthy | Lean grilled meats, chicken breast, steak |
-| 6 | `grain_bowls` | healthy | Quinoa, rice bowls, oatmeal, buddha bowls |
-| 7 | `soups` | healthy | Vegetable soups, miso, broths, stews |
-| 8 | `smoothies` | healthy | Smoothies, fresh juices, healthy drinks |
-| 9 | `burgers` | unhealthy | Cheeseburgers, hamburgers, hot dogs |
-| 10 | `pizza` | unhealthy | All pizza types, calzones |
-| 11 | `fried_food` | unhealthy | Fried chicken, fries, onion rings, nuggets |
-| 12 | `desserts` | unhealthy | Cakes, donuts, pastries, pies, cookies |
-| 13 | `candy_sweets` | unhealthy | Candy, chocolate, ice cream, frozen treats |
-| 14 | `salty_snacks` | unhealthy | Chips, nachos, pretzels, cheese puffs |
-| 15 | `sugary_drinks` | unhealthy | Soda, milkshakes, energy drinks, frappuccinos |
-| 16 | `not_food` | not_food | People, animals, objects, nature, food-adjacent items |
+- **Binary** (`healthy`, `unhealthy`) when trained on `maia2000/food-binary-dataset` or the binary subset of `food-classifier-dataset`.
+- **16-class** when trained on the legacy 16-class layout in `food-classifier-dataset`.
 
-### 2.2 Health-Label Rollup
+The fine-grained 16 classes still roll up to `{healthy, unhealthy, not_food}` at inference time using the mapping baked into `app.py` (`HEALTH_LABELS`).
 
-The 16 fine-grained predictions are mapped to 3 moderation groups for the API:
+---
+
+## 3. Training pipeline
+
+Two notebooks live in this directory:
+
+- `vit_video.ipynb` — full multi-class video trainer (BiLSTM temporal head, 8 frames per clip, Colab-disconnect-resilient via Drive checkpoints).
+- `vit_video_binary.ipynb` — lighter-weight binary single-frame trainer used for the `food-classifier-binary-vit` HF release; frozen backbone, ~10 min on a Colab T4.
+
+The standalone CLI is `train.py`, which calls into `engine/trainer.py`. Both notebooks invoke the same trainer.
+
+### Augmentation (training only)
+
+`RandomResizedCrop(224, scale=(0.6, 1.0))`, `RandomHorizontalFlip`, `RandomRotation(15°)`, `RandomPerspective`, `ColorJitter`, `GaussianBlur`, `RandomErasing`. Validation uses `Resize(224) + CenterCrop(224)` only.
+
+### Normalization
+
+ImageNet mean `[0.485, 0.456, 0.406]` / std `[0.229, 0.224, 0.225]`.
+
+### Hyperparameters — multi-class (`vit_video.ipynb`)
+
+| Parameter | Value |
+|---|---|
+| Frames per clip | 8 |
+| Image size | 224 × 224 |
+| Batch size | 8 |
+| Optimizer | AdamW, lr=3e-5, weight_decay=1e-3 |
+| LR search | candidates `5e-6,1e-5,3e-5,5e-5,1e-4` (optional, via `hparam_search_epochs > 0`) |
+| Loss | `CrossEntropyLoss`, optional class weights from training distribution |
+| Epochs | 20 with `EarlyStopping(patience=7)` |
+| Temporal pool | `lstm` (BiLSTM) |
+| Backbone | `auto` (ViT-B/16 on CUDA, MobileViT-XXS on CPU) |
+| Gradient clipping | `max_grad_norm=1.0` |
+| Dropout (head) | 0.4 |
+| Class weighting | enabled by default (computes inverse-frequency weights from train set) |
+
+### Hyperparameters — binary (`vit_video_binary.ipynb`)
+
+Simpler pipeline: frozen ViT-B/16 + linear head, single-frame (no temporal aggregation), trained on `maia2000/food-binary-dataset` (~35k frames).
+
+| Parameter | Value |
+|---|---|
+| Backbone | ViT-B/16, **frozen** (only `model.heads` trained) |
+| Optimizer | AdamW, lr=1e-3, weight_decay=1e-4 |
+| Loss | `CrossEntropyLoss(label_smoothing=0.1)` |
+| Epochs | 10 with `EarlyStopping(patience=3)` |
+| AMP | enabled |
+
+### Resume
+
+`engine/trainer.py` saves `best_food_classifier.pth` after every val-improvement epoch. Pass `--resume <path>` to continue from a checkpoint; the optimizer state and epoch counter are restored.
+
+---
+
+## 4. Mobile export
+
+Section 13 of `vit_video.ipynb` runs `export_mobile.py` with `EXPORT_FORMATS` (default `['torchscript', 'onnx', 'tflite']`; add `'coreml'` on macOS) and `QUANTIZE=True`. Outputs land in `exported_models/`:
+
+- `best_food_classifier.pth` — full PyTorch checkpoint (model + optimizer state + metadata).
+- `<name>.pt` — TorchScript, traced, `torch.utils.mobile_optimizer.optimize_for_mobile` applied (gracefully skipped if tracing doesn't tolerate it — e.g. on some LSTM builds).
+- `<name>.ptl` — **PyTorch Mobile Lite Interpreter** build (produced alongside the `.pt` via `traced_model._save_for_lite_interpreter`). Smaller runtime footprint, optimized for on-device Android / iOS. **This is the canonical shipping format for the ViT-Video model on mobile.**
+- `<name>.onnx` — ONNX export, opset 17, with **both batch and num_frames axes dynamic**.
+- `<name>.tflite` — via `ai_edge_torch` (preferred) or ONNX→TF→TFLite fallback. `--quantize` applies float16 weight quantization (~2× smaller, no accuracy loss, no representative dataset needed).
+- `<name>.mlpackage` — CoreML ML Program, iOS15+ target (only if `coremltools` is installed).
+- `model_card.json` — records resolved backbone (not `"auto"`), classes, input shape, normalization, evaluation metrics.
+
+The TorchScript file is what the demo app (`app.py`) loads via `torch.jit.load`.
+
+### 4a. TFJS export — not supported for ViT (use MobileNetV3 instead)
+
+TFJS is **deliberately excluded** from the default format list for this model.
+
+#### Why — architectural and operator-level incompatibility
+
+Vision Transformer (ViT) models are not well-suited for TensorFlow.js deployment due to architectural and operator-level incompatibilities. Unlike convolutional networks, ViT models rely heavily on transformer-specific operations:
+
+- **Multi-head self-attention** — decomposed into scaled dot-product matmuls + softmax + head-wise reshape
+- **Matrix multiplications with dynamic tensor reshaping** — patch embedding and attention heads reshape from shapes only known at runtime
+- **Layer normalization** — computed over the last dimension with learned affine parameters, composed tightly with GELU activations
+- **Attention-score computation** — numerically sensitive (softmax over `Q·Kᵀ / √dₖ`) and emitted as a fused subgraph by `torch.onnx.export`
+- **BiLSTM temporal head** — adds stateful RNN ops on top of the transformer backbone
+
+These are **fully supported in PyTorch** and **partially supported in ONNX**, but they are not consistently mapped into TensorFlow SavedModel graphs in a way that TensorFlow.js can reliably interpret.
+
+#### Why the conversion chain breaks
+
+In practice, the `PyTorch → ONNX → TensorFlow → TFJS` pipeline often fails because intermediate conversion tools — notably `onnx-tf` and the TensorFlow graph exporters — do not fully implement support for transformer-specific operators or dynamic computation graphs. Common symptoms:
+
+- **Incomplete or empty exported models** (the SavedModel is produced but contains only a subset of the original graph)
+- **Silent failures during graph conversion** (no exception, but the output is numerically wrong)
+- **Op-not-supported errors at TFJS load time** (model ships but the browser runtime refuses to run it)
+
+Additionally, **TensorFlow.js is primarily optimized for convolution-based architectures and lightweight sequential models**, not large transformer-based vision models. Even when a conversion technically succeeds, the browser-side execution is often too slow to be usable.
+
+#### Analogy
+
+CNNs are LEGO blocks: `Conv → BN → ReLU → Pool` translates cleanly to any framework. ViT is a robotic assembly — self-attention, dynamic shapes, and composite norm/activation blocks that only survive intact when the target runtime matches the source runtime's assumptions. TFJS is not that runtime.
+
+#### How this model is actually deployed
+
+For this reason, ViT models are typically deployed via runtimes that natively support transformer computation graphs:
+
+- **ONNX Runtime / ONNX Runtime Web** — for web and edge deployment where a browser-compatible runtime is required
+- **PyTorch Mobile** — for native Android / iOS inference
+
+In this project, the ViT-Video model is shipped as a **PyTorch Mobile Lite** artifact (`.ptl`) — produced by calling `traced_model._save_for_lite_interpreter()` on the TorchScript module rather than the regular `.save()`. The Lite Interpreter guarantees full operator compatibility on-device, runs the optimized mobile kernel set, and eliminates graph-conversion risk entirely (no cross-framework round-trip). `.pt` TorchScript is still produced alongside for desktop / server use.
+
+#### If you still want to try TFJS export
+
+`export_tfjs` in `export_mobile.py` is kept as a best-effort entry point with fail-fast handling — it prints what broke at each stage (ONNX, `onnx-tf`, `tensorflowjs_converter`) so you know whether to blame the op set or the conversion:
+
+```bash
+python export_mobile.py --model ... --format tfjs
+```
+
+If it does succeed, **always validate numerical parity** against the PyTorch model on a held-out batch before shipping; silent wrong outputs are the default failure mode.
+
+#### Browser deployment — use MobileNetV3 instead
+
+The MobileNetV3-Small pipeline (`src/mobilenet_v3_small/`) is a pure CNN, trained directly in Keras, and converts to TFJS with one line:
 
 ```python
-HEALTH_LABELS = {
-    "fruits": "healthy", "vegetables": "healthy", "salads": "healthy",
-    "seafood": "healthy", "grilled_meat": "healthy", "grain_bowls": "healthy",
-    "soups": "healthy", "smoothies": "healthy",
-    "burgers": "unhealthy", "pizza": "unhealthy", "fried_food": "unhealthy",
-    "desserts": "unhealthy", "candy_sweets": "unhealthy",
-    "salty_snacks": "unhealthy", "sugary_drinks": "unhealthy",
-    "not_food": "not_food",
-}
+tfjs.converters.save_keras_model(model, "model_tfjs/", quantization_dtype_map={"uint8": "*"})
 ```
 
-### 2.3 Why 16 Classes Instead of 3
+That produces a ~1 MB uint8-quantized bundle that loads via `tf.loadLayersModel("model.json")` with no op-compatibility issues. See [`src/mobilenet_v3_small/TECHNICAL.md`](../mobilenet_v3_small/TECHNICAL.md) §4.
 
-Training on 16 fine-grained classes and rolling up to 3 health groups outperforms training directly on 3 classes because:
+#### Deployment target matrix
 
-- The model learns **discriminative features** for each food type (burgers look different from pizza)
-- Reduces confusion between visually similar healthy/unhealthy items (e.g., grilled chicken vs fried chicken)
-- The `not_food` class benefits from explicit negative examples rather than being a catch-all
-- Fine-grained predictions are more interpretable for debugging and auditing
-
----
-
-## 3. Model Architecture
-
-### 3.1 High-Level Pipeline
-
-```
-Video (T frames)
-  |
-  v
-[Frame Extraction] -- evenly-spaced sampling (default T=8)
-  |
-  v
-[Per-Frame MobileViT-XXS Backbone] -- pretrained ImageNet feature extractor
-  |  Input:  (B*T, 3, 224, 224)
-  |  Output: (B*T, feat_dim)
-  v
-[Reshape] -- (B, T, feat_dim)
-  |
-  v
-[Bidirectional LSTM] -- 1-layer, hidden_size = feat_dim/2 per direction
-  |  Input:  (B, T, feat_dim)
-  |  Output: (B, T, feat_dim)
-  v
-[Temporal Mean Pool] -- average across T timesteps
-  |  Output: (B, feat_dim)
-  v
-[Dropout(0.4)]
-  |
-  v
-[Linear Classifier] -- (feat_dim -> 16)
-  |
-  v
-Output: (B, 16) logits
-```
-
-### 3.2 Backbone Options
-
-| Backbone | Feature Dim | Params | Source | When Selected |
-|---|---|---|---|---|
-| `mobilevit_xxs` | 320 | ~1.3M | timm | CPU fallback (default) |
-| `mobilevit_xs` | 384 | ~2.3M | timm | Manual selection |
-| `mobilevit_s` | 640 | ~5.6M | timm | Manual selection |
-| `vit_b_16` | 768 | ~86M | torchvision / timm | GPU available (default) |
-| `vit_b_32` | 768 | ~88M | torchvision / timm | Manual selection |
-| `vit_l_16` | 1024 | ~304M | torchvision / timm | Manual selection |
-
-The `auto` backbone setting selects `mobilevit_xxs` on CPU and `vit_b_16` on GPU. For mobile deployment, `mobilevit_xxs` is always used regardless of training backbone.
-
-### 3.3 Temporal Pooling Modes
-
-| Mode | Operation | Description |
-|---|---|---|
-| `lstm` (default) | `BiLSTM(feat_dim, feat_dim//2, bidirectional=True) -> mean` | Learns temporal frame dependencies |
-| `avg` | `feats.mean(dim=1)` | Simple mean pooling |
-| `max` | `feats.max(dim=1)` | Max pooling |
-| `conv1d` | `Conv1d(feat_dim, feat_dim, kernel=3) -> mean` | Learned temporal convolution |
-
-### 3.4 Input / Output Shapes
-
-| Tensor | Shape | Description |
-|---|---|---|
-| Input | `(B, 8, 3, 224, 224)` | Batch of videos: 8 frames, RGB, 224x224 |
-| Backbone output | `(B*8, feat_dim)` | Per-frame features |
-| LSTM output | `(B, 8, feat_dim)` | Contextualized frame features |
-| After temporal pool | `(B, feat_dim)` | Video-level features |
-| Output logits | `(B, 16)` | Raw class scores |
-
----
-
-## 4. Dataset
-
-### 4.1 Data Collection
-
-~8,600 images across 16 classes, downloaded from Bing image search via `icrawler`. Each keyword produces ~20 images named with the `_frame_NNNN` convention (pseudo-videos).
-
-- **~27 keywords per class** with diverse search terms (51 for not_food)
-- **20 images per keyword** = ~540 images per class
-- **not_food** includes hard negatives: empty plates, kitchen utensils, grocery aisles, people, pets
-
-Alternatively, real YouTube videos can be downloaded via `generatedata.py` using `yt-dlp`, then frames are extracted with ffmpeg.
-
-### 4.2 Data Source: HuggingFace
-
-The dataset is hosted on HuggingFace at `maia2000/food-classifier-dataset` so teammates can download it directly instead of scraping. The notebook defaults to HuggingFace download (`USE_HF_DATASET = True`).
-
-### 4.3 Data Augmentation (training only)
-
-| Augmentation | Parameters |
-|---|---|
-| `RandomResizedCrop` | scale=(0.6, 1.0), ratio=(0.8, 1.2) |
-| `RandomHorizontalFlip` | p=0.5 |
-| `RandomRotation` | degrees=15 |
-| `RandomPerspective` | distortion_scale=0.2, p=0.3 |
-| `ColorJitter` | brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1 |
-| `GaussianBlur` | kernel_size=3, sigma=(0.1, 2.0) |
-| `RandomErasing` | p=0.3, scale=(0.02, 0.2) |
-
-**Normalization:** ImageNet mean `[0.485, 0.456, 0.406]`, std `[0.229, 0.224, 0.225]`
-
-### 4.4 Data Splitting
-
-Video-level stratified splitting (no frame leakage between splits):
-
-| Split | Ratio | Purpose |
-|---|---|---|
-| Train | 70% | Model training |
-| Validation | 15% | Early stopping, LR scheduling |
-| Test | 15% | Final evaluation |
-
-The split manifest (`video_split_manifest.json`) ensures all frames from the same video stay in the same split, preventing data leakage.
-
----
-
-## 5. Training
-
-| Parameter | Value | Why |
-|---|---|---|
-| Optimizer | AdamW (lr=3e-5, weight_decay=1e-3) | AdamW decouples weight decay; low LR for fine-tuning pretrained backbone |
-| Loss | CrossEntropyLoss (label_smoothing=0.1) | Smoothing prevents overconfident predictions, improves generalization |
-| Class weighting | Inverse frequency per class | Compensates for imbalanced classes (not_food has more samples) |
-| Gradient clipping | max_norm=1.0 | Prevents exploding gradients during LSTM training |
-| LR schedule | LinearLR warmup (3 epochs) + CosineAnnealingLR (eta_min=1e-7) | Warmup avoids destroying pretrained weights; cosine decay is smooth |
-| Early stopping | patience=7, min_delta=5e-5 | Stops training when validation loss plateaus |
-| AMP | Enabled on CUDA | Mixed precision for faster training on GPU |
-| Epochs | 20 (notebook) / 25 (CLI) | Early stopping usually triggers before max epochs |
-| Batch size | 8 | Fits in Colab GPU memory with video frame sequences |
-| Dropout | 0.4 | Regularization before the classifier head |
-
-### 5.1 Google Drive Checkpoints
-
-When training on Google Colab, checkpoints are automatically synced to Google Drive (`/content/drive/MyDrive/whispr-checkpoints/`) after each improvement. If the Colab runtime disconnects, training resumes from the last best checkpoint.
-
----
-
-## 6. Evaluation
-
-- Precision, Recall, F1 (macro-averaged) at fine-grained level -- **do not rely on accuracy alone**
-- Confusion matrix (16x16)
-- Health-level rollup: precision/recall/F1 and confusion matrix at healthy/unhealthy/not_food level
-- K-fold cross-validation (video-grouped, stratified)
-- Optional external data testing
-
----
-
-## 7. Export & Mobile Deployment
-
-### 7.1 Export Formats
-
-| Format | File | Target | Why |
+| Target | Runtime | Format | Model |
 |---|---|---|---|
-| TorchScript | `.pt` | Mobile / embedded | Native PyTorch, no extra dependencies |
-| ONNX | `.onnx` | Cross-platform (opset 17) | Universal runtime (Android, iOS, web, server) |
-| CoreML | `.mlpackage` | iOS 15+ | Apple Neural Engine hardware acceleration |
-| TFLite | `.tflite` | Android | Optimized for Android NN API |
-
-### 7.2 Conversion Pipeline
-
-```
-best_food_classifier.pth  (PyTorch checkpoint)
-  |
-  v
-[Load model + state dict]
-  |
-  v
-[export_mobile.py]
-  |  --format torchscript onnx coreml tflite
-  |
-  +---> model.pt         (TorchScript, ~5 MB)
-  +---> model.onnx       (ONNX opset 17, ~5 MB)
-  +---> model.mlpackage  (CoreML, iOS 15+)
-  +---> model.tflite     (TFLite via onnx2tf)
-```
-
-### 7.3 How to Convert
-
-```bash
-# Export all formats
-python export_mobile.py --model models/best_food_classifier.pth --format torchscript onnx coreml tflite
-
-# Export specific formats
-python export_mobile.py --model models/best_food_classifier.pth --format torchscript onnx
-
-# With custom output directory
-python export_mobile.py --model models/best_food_classifier.pth --output-dir exported_models/
-```
-
-### 7.4 Mobile Inference
-
-On mobile, the model expects:
-- **Input:** `float32` tensor of shape `(1, 8, 3, 224, 224)` -- 8 RGB frames, normalized with ImageNet stats
-- **Output:** `float32` tensor of shape `(1, 16)` -- logits for each class (apply softmax for probabilities)
-- **Preprocessing:** Resize each frame to 224x224, normalize with mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-
-For single-image inference (no video), duplicate the image 8 times to fill the frame sequence.
-
-Example mobile inference flow:
-
-```
-1. Capture 8 evenly-spaced frames from video (or duplicate single image x8)
-2. Resize each to 224x224
-3. Normalize with ImageNet mean/std
-4. Stack into tensor [1, 8, 3, 224, 224]
-5. Run model (TorchScript / ONNX / CoreML / TFLite)
-6. Apply softmax to output [1, 16]
-7. Map argmax to class name
-8. Map class name to health group via HEALTH_LABELS
-```
+| Native Android / iOS | PyTorch Mobile (Lite Interpreter) | `.ptl` | ViT-Video |
+| Web / edge (transformer-capable) | ONNX Runtime / ONNX Runtime Web | `.onnx` | ViT-Video |
+| Server / desktop Python | PyTorch | `.pt` TorchScript | ViT-Video |
+| Android (TF ecosystem) | TFLite | `.tflite` | ViT-Video |
+| iOS (Apple ecosystem) | CoreML | `.mlpackage` | ViT-Video |
+| **Browser (TFJS)** | **TensorFlow.js** | **`model.json` + shards** | **MobileNetV3-Small** |
 
 ---
 
-## 8. Project Structure
+## 5. App integration (`app_mockup_demo/app.py`)
 
-```
-src/vit_video/
-  models/vit.py              # MobileViTModel (backbone + BiLSTM + classifier)
-  engine/trainer.py           # Training loop, AdamW, LR scheduler, AMP, Drive sync
-  data/dataset.py             # VideoDataset, build_dataloaders
-  data/splits.py              # Video-level splitting, manifest management
-  utils/                      # Hardware, transforms, checkpoint utils
-  train.py                    # Training entry point
-  test.py                     # Evaluation entry point
-  inference.py                # Video/webcam inference
-  validate_model.py           # Leakage audit, k-fold CV, external test
-  export_mobile.py            # Multi-format model export + model card
-  upload_hf.py                # Hugging Face Hub upload
-  generatedata.py             # YouTube video download + frame extraction
-  run_pipeline.py             # End-to-end pipeline (download -> train -> test -> export)
-  paths.py                    # Default directory constants
-  _bootstrap.py               # sys.path setup for standalone scripts
-  vit_video.ipynb             # Google Colab notebook
-  requirements.txt            # Python dependencies
-  TECHNICAL.md                # This file
-```
+`predict_vit` accepts either a single PIL image (duplicated 8×) or a list of frames (uniformly sampled / padded to exactly 8). It:
+
+1. Looks for `vit_food.pt`, `best_food_classifier.pt`, `model.pt`, or `best_food_classifier.pth` under `app_mockup_demo/models/` and the legacy locations.
+2. Tries `torch.jit.load` first (TorchScript). Falls back to `load_model_from_checkpoint` from `vit_video.utils.model_utils` for raw state-dict files.
+3. Detects class count from the classifier weight shape and reads class names from the checkpoint metadata, then a sibling `labels.json`, then `_classes_for_n(n)` as fallback.
+4. Returns `(class_name, confidence, probs, classes)` — all wrapped in try/except so a corrupt model never crashes the UI.
+
+Video uploads in the app go through `_extract_video_frames` (OpenCV), which pulls 8 evenly spaced frames; the result feeds straight into `predict_vit`.
 
 ---
 
-## 9. Usage
+## 6. Files
 
-```bash
-# Training
-python train.py --dataset-dir food_data/frames --epochs 25 --temporal-pool lstm
+| Path | Purpose |
+|---|---|
+| `vit_video.ipynb` | Multi-class Colab training notebook (video + BiLSTM temporal head) |
+| `vit_video_binary.ipynb` | Binary single-frame training notebook |
+| `train.py` | CLI entry point (training) |
+| `run_pipeline.py` | Full data pipeline: YouTube fetch → frame extraction → train/val/test split |
+| `inference.py` | Single-video or single-image inference CLI |
+| `validate_model.py` | Held-out test evaluation + external K-fold validation |
+| `export_mobile.py` | Mobile export (TorchScript `.pt`, Lite Interpreter `.ptl`, ONNX, TFLite, CoreML) |
+| `generatedata.py` | YouTube scraping via `yt-dlp` |
+| `upload_hf.py` | HuggingFace dataset + model push |
+| `engine/trainer.py` | Training loop, AMP, checkpoint logic |
+| `engine/dataset.py` | Frame sampling, augmentation, class-weight computation |
+| `models/vit.py` | `MobileViTModel` — ViT-B/16 or MobileViT-XXS backbone + temporal head |
+| `utils/model_utils.py` | Checkpoint load/remap + factory used by the demo app |
+| `utils/hardware.py`, `utils/video.py`, `utils/data_utils.py` | Hardware probe, OpenCV frame IO, transforms |
+| `_bootstrap.py` | sys.path helper (Colab-friendly; no-op in normal installs) |
+| `requirements.txt` | Training deps (torch, timm, opencv, yt-dlp, …) |
 
-# Evaluation
-python test.py --model models/best_food_classifier.pth --dataset-dir food_data/frames
-
-# Inference
-python inference.py --video path/to/video.mp4 --model models/best_food_classifier.pth
-python inference.py --webcam --model models/best_food_classifier.pth
-
-# Export
-python export_mobile.py --model models/best_food_classifier.pth --format torchscript onnx
-
-# Validation
-python validate_model.py --dataset-dir food_data/frames --n-folds 5
-
-# Full pipeline
-python run_pipeline.py --dataset-dir food_data --epochs 25
-
-# Google Colab
-# Open vit_video.ipynb -- handles everything automatically.
-```
-
----
-
-## 10. HuggingFace Repos
-
-| Repo | Type | Content |
-|---|---|---|
-| `maia2000/food-classifier-dataset` | dataset | 16-class video frames (`frames/<class>/<video>_frame_NNNN.jpg`) |
-| `maia2000/food-classifier` | model | Exported models (TorchScript, ONNX, CoreML, TFLite) |
+See [`DATASET.md`](../../DATASET.md) for the dataset structure and class taxonomy.

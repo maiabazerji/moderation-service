@@ -30,4 +30,8 @@ onnxruntime>=1.15.0
 # ai-edge-torch>=0.1.0
 # tensorflow>=2.13.0
 
+# Optional: TFJS export (browser). Needs tensorflow + onnx-tf for the PyTorch path.
+# tensorflowjs>=4.17.0
+# onnx-tf>=1.10.0
+
 

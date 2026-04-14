@@ -54,12 +54,23 @@ results/
 **/runs/
 *.log
 
-# Model final
+# Model final / binaries (any framework)
 src/efficientnet_lite_gpu/simple_efficientnet_food.h5
 *.h5
 *.keras
 *.ckpt
 *.weights.h5
+*.pth
+*.pt
+*.onnx
+*.tflite
+*.pb
+*.safetensors
+*.bin
+*.gguf
+*.joblib
+*.pkl
+*.pickle
 
 # Dataset
 src/efficientnet_lite_gpu/train/dataset/Train
@@ -69,6 +80,20 @@ src/efficientnet_lite_gpu/train/dataset/tmp
 src/efficientnet_lite_gpu/train/dataset/cache
 efficientnet_food_finetuned.h5
 src/efficientnet_lite_gpu/BestModelEfficientNetLite.h5
+
+# Datasets (any model) - never commit training images/data
+**/train/dataset/
+**/dataset/Train/
+**/dataset/Test/
+**/dataset/Val/
+**/dataset/tmp/
+**/dataset/cache/
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.gif
+*.tiff
 
 # Notebook
 .ipynb_checkpoints/

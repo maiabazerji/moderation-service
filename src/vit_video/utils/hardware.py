@@ -3,10 +3,11 @@ import torch
 
 def get_device() -> torch.device:
     if torch.cuda.is_available():
+        # cuDNN flags are best-effort; some torch builds without cuDNN raise AttributeError.
         try:
             torch.backends.cudnn.benchmark = True
             torch.backends.cudnn.deterministic = False
-        except Exception:
+        except (AttributeError, RuntimeError):
             pass
         return torch.device("cuda")
     if torch.backends.mps.is_built() and torch.backends.mps.is_available():

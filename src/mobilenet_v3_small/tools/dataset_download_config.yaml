@@ -1,0 +1,483 @@
+search_engine: duckduckgo
+delay_between_categories: 35
+delay_after_download: 0.8
+delay_between_pages: 2
+search_keywords:
+  fruits:
+  - banana fruit close up
+  - fresh apple fruit plate
+  - fresh orange citrus fruit
+  - fresh mixed berries bowl
+  - mango sliced fruit tropical
+  - watermelon slice summer
+  - kiwi fruit halved green
+  - pineapple sliced tropical
+  - grapes bunch fresh fruit
+  - pomegranate seeds bowl
+  - papaya fruit sliced
+  - blueberries bowl fresh
+  - strawberries fresh basket
+  - peach fruit sliced
+  - pear fruit fresh green
+  - cherry fruit bowl
+  - plum fruit purple fresh
+  - cantaloupe melon sliced
+  - passion fruit halved
+  - dragon fruit sliced pink
+  - fig fruit fresh cut
+  - apricot fruit orange
+  - raspberry bowl fresh red
+  - tangerine citrus peeled
+  - coconut halved fresh white
+  - grapefruit halved citrus
+  - avocado halved fresh green
+  vegetables:
+  - broccoli vegetable steamed
+  - steamed vegetables plate
+  - roasted vegetables oven tray
+  - vegetable stir fry wok
+  - grilled zucchini vegetables
+  - sauteed mushrooms pan
+  - asparagus grilled plate
+  - bell pepper sliced colorful
+  - cauliflower roasted golden
+  - brussels sprouts roasted
+  - spinach sauteed garlic
+  - green beans steamed plate
+  - sweet corn cob grilled
+  - eggplant grilled sliced
+  - artichoke cooked plate
+  - beets roasted sliced
+  - carrots roasted honey
+  - cabbage sauteed dish
+  - kale cooked sauteed
+  - peas green bowl fresh
+  - radish sliced fresh salad
+  - turnip roasted root
+  - celery sticks fresh snack
+  - bok choy stir fry
+  - snap peas fresh green
+  - okra cooked vegetable
+  - leek sauteed sliced
+  salads:
+  - green salad bowl meal
+  - kale spinach salad bowl
+  - cucumber tomato salad fresh
+  - caesar salad croutons parmesan
+  - mixed greens salad dressing
+  - greek salad feta olives
+  - caprese salad mozzarella tomato
+  - quinoa salad vegetables
+  - asian sesame salad bowl
+  - waldorf salad apple walnut
+  - cobb salad eggs bacon avocado
+  - arugula salad shaved parmesan
+  - tabbouleh parsley bulgur salad
+  - pasta salad vegetables cold
+  - coleslaw cabbage salad
+  - beet goat cheese salad
+  - chickpea salad mediterranean
+  - nicoise salad tuna
+  - fruit salad mixed colorful
+  - potato salad picnic
+  - southwest salad corn beans
+  - thai mango salad spicy
+  - seaweed salad japanese
+  - fattoush salad middle eastern
+  - spinach strawberry salad
+  - broccoli salad cranberry
+  - lentil salad warm herbs
+  seafood:
+  - grilled salmon vegetables plate
+  - sushi roll fresh fish
+  - baked cod fish lemon
+  - grilled shrimp skewers
+  - poke bowl fresh tuna
+  - sashimi platter japanese
+  - fish tacos fresh cilantro
+  - steamed mussels garlic wine
+  - lobster tail grilled butter
+  - scallops seared pan
+  - grilled tuna steak sesame
+  - shrimp cocktail appetizer
+  - crab legs steamed plate
+  - oysters fresh half shell
+  - calamari grilled not fried
+  - tilapia baked herbs lemon
+  - ceviche fresh seafood lime
+  - smoked salmon bagel cream
+  - sardines grilled Mediterranean
+  - sea bass baked whole
+  - trout pan seared butter
+  - clam chowder soup bowl
+  - fish curry coconut bowl
+  - prawn stir fry vegetables
+  - anchovy pizza topping
+  - mackerel grilled Japanese
+  - octopus grilled tentacles
+  grilled_meat:
+  - grilled chicken breast vegetables
+  - turkey breast sliced lean
+  - hard boiled eggs protein
+  - grilled steak medium rare
+  - lamb chops grilled herbs
+  - pork tenderloin roasted
+  - chicken kebab skewers grilled
+  - beef stir fry vegetables
+  - rotisserie chicken whole
+  - meatballs turkey lean
+  - chicken thighs grilled crispy
+  - sirloin steak grilled plate
+  - venison steak cooked rare
+  - duck breast seared skin
+  - beef brisket smoked sliced
+  - chicken wings baked not fried
+  - pork chops grilled bone
+  - flank steak marinated sliced
+  - rabbit roasted herbs
+  - quail grilled whole small
+  - beef jerky dried strips
+  - chicken satay peanut sauce
+  - shawarma chicken wrap plate
+  - pulled pork sandwich
+  - filet mignon steak dinner
+  - rack of lamb roasted
+  - beef tartare raw prepared
+  grain_bowls:
+  - quinoa bowl healthy meal
+  - brown rice bowl vegetables
+  - chickpea buddha bowl
+  - overnight oats fruit jar
+  - oatmeal breakfast bowl berries
+  - whole grain toast avocado
+  - granola yogurt bowl healthy
+  - couscous vegetable bowl
+  - farro grain bowl warm
+  - barley soup healthy grain
+  - acai bowl fruit toppings
+  - chia pudding healthy dessert
+  - rice cakes healthy snack
+  - cottage cheese fruit bowl
+  - tofu vegetable rice bowl
+  - black bean rice bowl
+  - poke rice bowl fresh
+  - burrito bowl healthy rice
+  - bibimbap korean rice bowl
+  - risotto mushroom arborio
+  - congee rice porridge asian
+  - polenta creamy bowl
+  - muesli breakfast bowl milk
+  - bulgur wheat bowl
+  - wild rice pilaf herbs
+  - tabbouleh grain bowl
+  - hummus grain bowl plate
+  soups:
+  - lentil soup healthy bowl
+  - miso soup japanese tofu
+  - vegetable soup homemade pot
+  - minestrone soup italian
+  - tomato soup grilled cheese
+  - chicken noodle soup bowl
+  - butternut squash soup creamy
+  - gazpacho cold soup spanish
+  - pho vietnamese noodle soup
+  - wonton soup dumplings broth
+  - corn chowder soup bowl
+  - mushroom soup creamy bowl
+  - black bean soup mexican
+  - split pea soup ham
+  - french onion soup cheese
+  - egg drop soup chinese
+  - coconut curry soup thai
+  - borscht beet soup red
+  - hot and sour soup chinese
+  - ramen noodle soup japanese
+  - tortilla soup mexican
+  - broccoli cheddar soup bowl
+  - lobster bisque creamy
+  - pozole mexican pork soup
+  - laksa noodle soup spicy
+  - udon noodle soup japanese
+  - bone broth clear soup
+  smoothies:
+  - green smoothie drink healthy
+  - berry smoothie purple blend
+  - mango smoothie tropical drink
+  - banana smoothie creamy glass
+  - protein smoothie post workout
+  - acai smoothie bowl thick
+  - spinach kale green smoothie
+  - strawberry banana smoothie
+  - peanut butter smoothie protein
+  - avocado smoothie green creamy
+  - coconut smoothie tropical blend
+  - blueberry smoothie antioxidant
+  - oat milk smoothie breakfast
+  - detox green juice cleanse
+  - carrot orange juice fresh
+  - beet juice red healthy
+  - watermelon juice fresh summer
+  - celery juice green health
+  - ginger turmeric shot wellness
+  - matcha latte green tea
+  - kombucha fermented tea drink
+  - fresh pressed orange juice
+  - cucumber mint water infused
+  - lemon water detox morning
+  - iced green tea unsweetened
+  - coconut water fresh natural
+  - almond milk smoothie vanilla
+  burgers:
+  - cheeseburger close up eating
+  - bacon cheeseburger fast food
+  - double cheeseburger stacked
+  - big mac hamburger meal
+  - slider burgers mini cheese
+  - mushroom swiss burger
+  - bbq bacon burger loaded
+  - wagyu beef burger gourmet
+  - turkey burger fast food
+  - veggie burger fast food chain
+  - patty melt burger griddled
+  - western burger onion ring
+  - jalapeÃƒÂ±o burger spicy cheese
+  - blue cheese burger gourmet
+  - smash burger crispy thin
+  - whopper burger king meal
+  - five guys burger fries
+  - in n out burger animal style
+  - shake shack burger meal
+  - breakfast burger egg bacon
+  - truffle burger gourmet fancy
+  - chipotle burger spicy sauce
+  - teriyaki burger pineapple
+  - elk burger wild game
+  - bison burger gourmet meat
+  - lamb burger mediterranean
+  - hot dog mustard ketchup bun
+  pizza:
+  - pepperoni pizza slice cheese
+  - margherita pizza fresh basil
+  - meat lovers pizza loaded
+  - hawaiian pizza ham pineapple
+  - deep dish pizza chicago style
+  - thin crust pizza new york
+  - stuffed crust pizza cheese
+  - buffalo chicken pizza
+  - bbq chicken pizza slice
+  - white pizza garlic ricotta
+  - supreme pizza everything toppings
+  - four cheese pizza blend
+  - mushroom truffle pizza gourmet
+  - veggie pizza loaded toppings
+  - calzone folded pizza pocket
+  - pizza rolls frozen snack
+  - flatbread pizza crispy thin
+  - sicilian pizza thick square
+  - detroit style pizza crispy
+  - neapolitan pizza wood fired
+  - french bread pizza baked
+  - bagel bites pizza snack
+  - pizza hut delivery box
+  - dominos pizza delivery
+  - frozen pizza oven baked
+  - garlic knots pizza side
+  - pizza dough stretching making
+  fried_food:
+  - french fries fast food
+  - fried chicken bucket crispy
+  - deep fried chicken wings
+  - fried onion rings basket
+  - mozzarella sticks fried cheese
+  - deep fried corn dog
+  - fried fish and chips
+  - chicken nuggets dipping sauce
+  - fried calamari appetizer
+  - tempura fried battered shrimp
+  - jalapeno poppers fried cheese
+  - deep fried oreos fair food
+  - fried pickles appetizer
+  - fried cheese curds basket
+  - chicken tenders fried crispy
+  - fried wontons crispy golden
+  - hush puppies fried cornmeal
+  - fried zucchini sticks breaded
+  - corn fritters fried golden
+  - fried shrimp basket tartar
+  - tater tots crispy fried
+  - fried ravioli appetizer
+  - poutine fries gravy cheese
+  - loaded fries cheese bacon
+  - curly fries seasoned crispy
+  - waffle fries chick fil a
+  - sweet potato fries fried
+  desserts:
+  - chocolate cake slice frosting
+  - glazed donut dessert sprinkles
+  - cupcake frosting sprinkles
+  - cheesecake slice strawberry
+  - churros fried sugar cinnamon
+  - cinnamon roll frosting icing
+  - brownie chocolate fudge walnut
+  - pancakes syrup butter stack
+  - funnel cake powdered sugar
+  - cream puff pastry custard
+  - tiramisu dessert coffee cream
+  - pie slice whipped cream
+  - waffle chocolate syrup cream
+  - eclair chocolate pastry cream
+  - croissant butter flaky pastry
+  - baklava honey pistachio pastry
+  - apple pie lattice crust
+  - red velvet cake cream cheese
+  - birthday cake frosting candles
+  - creme brulee torch caramel
+  - panna cotta dessert italian
+  - profiteroles chocolate cream
+  - danish pastry fruit icing
+  - scone clotted cream jam
+  - tres leches cake soaked
+  - bread pudding caramel sauce
+  - glazed donuts box dozen
+  candy_sweets:
+  - candy sweets unwrapping colorful
+  - chocolate bar wrapper bite
+  - gummy bears candy bowl
+  - jelly beans colorful candy
+  - cotton candy carnival pink
+  - caramel popcorn sweet snack
+  - lollipop candy colorful stick
+  - ice cream sundae chocolate
+  - ice cream cone scoops
+  - frozen yogurt toppings cup
+  - popsicle frozen fruit bar
+  - milkshake thick straw glass
+  - chocolate truffles assorted box
+  - fudge chocolate squares plate
+  - marshmallow smores campfire
+  - toffee candy wrapped butter
+  - taffy saltwater candy pulled
+  - rock candy crystal sugar
+  - candy corn halloween bowl
+  - licorice red black candy
+  - chocolate mousse dessert rich
+  - M&Ms candy colorful bowl
+  - skittles candy rainbow bag
+  - kit kat chocolate wafer
+  - snickers bar chocolate peanut
+  - reeses peanut butter cup
+  - gummy worms sour candy
+  salty_snacks:
+  - potato chips bag eating
+  - nachos cheese jalapeno loaded
+  - cheese puffs snack orange
+  - pretzel bites cheese dip
+  - corn chips salsa queso
+  - popcorn butter movie snack
+  - trail mix salty sweet nuts
+  - crackers cheese plate snack
+  - doritos chips nacho cheese
+  - cheetos flaming hot bag
+  - pringles chips can stack
+  - tortilla chips guacamole
+  - goldfish crackers snack bowl
+  - chex mix snack bag party
+  - beef jerky dried snack
+  - pork rinds fried snack
+  - sunflower seeds snack salted
+  - mixed nuts salted roasted
+  - rice crackers asian snack
+  - cheese crackers snack pack
+  - onion dip chips snack
+  - hummus chips snack plate
+  - breadsticks garlic butter
+  - cheese balls fried orange
+  - bugles cone shaped snack
+  - funyuns onion ring snack
+  - combos pretzel cheese snack
+  sugary_drinks:
+  - soda cola pouring glass
+  - milkshake dessert drink straw
+  - energy drink can neon
+  - iced frappuccino whipped cream
+  - bubble tea boba pearls
+  - slurpee frozen drink colorful
+  - lemonade sweet pitcher summer
+  - sweet iced tea glass
+  - hot chocolate whipped cream
+  - mocha coffee sweet cream
+  - fruit punch bowl red drink
+  - capri sun juice pouch
+  - kool aid pitcher colorful
+  - mountain dew soda green
+  - sprite soda lemon lime
+  - fanta orange soda can
+  - root beer float ice cream
+  - cream soda vanilla drink
+  - dr pepper soda can glass
+  - gatorade sports drink bottle
+  - arizona iced tea can
+  - starbucks caramel frappuccino
+  - chocolate milk glass straw
+  - strawberry milkshake pink
+  - vanilla milkshake thick glass
+  - mango lassi sweet drink
+  - pina colada cocktail sweet
+  not_food:
+  - cat sleeping couch home
+  - dog playing park grass
+  - bird flying blue sky
+  - horse running field pasture
+  - fish aquarium swimming
+  - rabbit pet fluffy cute
+  - person walking street city
+  - people jogging park morning
+  - crowd concert music event
+  - children playground school
+  - office workers meeting room
+  - students classroom lecture
+  - car driving highway road
+  - bicycle riding path urban
+  - airplane flying sky clouds
+  - train station platform
+  - sunset ocean beach landscape
+  - mountain hiking trail nature
+  - flowers garden spring bloom
+  - snow winter trees forest
+  - waterfall tropical forest
+  - desert sand dunes landscape
+  - city skyline night lights
+  - construction site crane building
+  - shopping mall interior stores
+  - bridge architecture river
+  - book reading library study
+  - laptop computer desk work
+  - guitar music instrument
+  - painting art museum gallery
+  - phone texting screen hands
+  - camera equipment lens photo
+  - soccer ball field sports
+  - basketball court game playing
+  - swimming pool water blue
+  - yoga mat exercise fitness
+  - empty plate table setting
+  - kitchen counter clean modern
+  - cutting board knife wooden
+  - cooking pot stove kitchen
+  - grocery store aisle shelves
+  - restaurant interior empty tables
+  - menu card restaurant dining
+  - vending machine snacks exterior
+  - kitchen utensils drawer
+  - oven stove kitchen appliance
+  - refrigerator open empty
+  - coffee machine espresso maker
+  - wine glasses empty table
+  - barbeque grill empty outdoor
+  - dining table set no food
+max_num_per_class: 600
+max_rounds_per_class: 3
+balance: true
+min_size:
+- 200
+- 200

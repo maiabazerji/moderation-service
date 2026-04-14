@@ -39,10 +39,10 @@ def _sample_video_frames(cap: cv2.VideoCapture, num_frames: int, img_size: int):
     if total_frames <= 0:
         return None, 0
 
-    if total_frames < num_frames:
-        frame_indices = np.linspace(0, total_frames - 1, num_frames, dtype=int)
-    else:
-        frame_indices = np.linspace(0, total_frames - 1, num_frames, dtype=int)
+    # np.linspace with dtype=int handles both short and long videos: when
+    # total_frames < num_frames it naturally repeats indices, sampling each
+    # available frame and duplicating a few to reach num_frames.
+    frame_indices = np.linspace(0, total_frames - 1, num_frames, dtype=int)
 
     frames, missing = [], 0
     for idx in frame_indices:
@@ -80,8 +80,8 @@ def _resolve_class_names(
                 names = ck.get("metadata", {}).get("classes") or ck.get("classes")
                 if names and len(names) == num_classes:
                     return names
-        except Exception:
-            pass
+        except (RuntimeError, OSError, EOFError, KeyError) as e:
+            print(f"[inference] Could not read class names from {checkpoint_path}: {e}")
     return [f"Class {i}" for i in range(num_classes)]
 
 

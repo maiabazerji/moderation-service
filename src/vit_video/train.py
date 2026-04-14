@@ -127,6 +127,7 @@ def main(args):
     model = MobileViTModel(
         num_classes=len(classes), model_name=backbone,
         pretrained=True, temporal_pool=args.temporal_pool, dropout=args.dropout,
+        freeze_backbone=getattr(args, "freeze_backbone", False),
     )
     trainer = Trainer(
         model=model, device=device, train_loader=train_loader, val_loader=val_loader,

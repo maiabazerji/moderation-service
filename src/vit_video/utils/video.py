@@ -4,11 +4,13 @@ from pathlib import Path
 import cv2
 
 try:
+    # Silence OpenCV's verbose stderr warnings for corrupt/truncated frames.
     if hasattr(cv2, "utils"):
         cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR)
     else:
         cv2.setLogLevel(getattr(cv2, "LOG_LEVEL_ERROR", 0))
-except Exception:
+except (AttributeError, RuntimeError):
+    # OpenCV log-level APIs vary across builds; the silence is a nice-to-have, not required.
     pass
 
 
