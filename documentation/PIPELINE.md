@@ -1,115 +1,61 @@
-# Pipeline de bout en bout — du dataset brut au modèle déployé
+# Pipeline de bout en bout
 
-Ce document décrit le **flux complet** d'utilisation du module `src/efficientnet_lite_gpu/` :
-récupération des données → préparation → entraînement → évaluation → conversion → publication / déploiement edge.
+Note pratique pour traverser l'ensemble du module `src/efficientnet_lite_gpu/` : depuis les images brutes jusqu'au modèle déployable. Le document suit la façon dont ça se passe réellement aujourd'hui, avec les vraies commandes et les vrais chemins.
 
-Toutes les commandes sont à exécuter depuis `src/efficientnet_lite_gpu/` (sauf mention contraire).
+Les docs connexes :
 
-> Pour la préparation détaillée du dataset, voir [`DATASET_PREPARATION.md`](./DATASET_PREPARATION.md).
-> Pour l'environnement (CUDA / ROCm), voir [`SETUP_CUDA_NVIDIA.md`](./SETUP_CUDA_NVIDIA.md) et [`SETUP_ROCM_AMD.md`](./SETUP_ROCM_AMD.md).
-> Pour le sweep d'hyperparamètres, voir [`HYPERPARAMETER_SWEEP_GUIDE.md`](./HYPERPARAMETER_SWEEP_GUIDE.md).
+- Préparation du dataset → [`DATASET_PREPARATION.md`](./DATASET_PREPARATION.md)
+- Sweep d'hyperparamètres → [`HYPERPARAMETER_SWEEP_GUIDE.md`](./HYPERPARAMETER_SWEEP_GUIDE.md)
+- Rapport du dernier run MobileNetV2-0.35 → [`RAPPORT_ENTRAINEMENT_MOBILENETV2.md`](./RAPPORT_ENTRAINEMENT_MOBILENETV2.md)
+- Environnements GPU → [`SETUP_CUDA_NVIDIA.md`](./SETUP_CUDA_NVIDIA.md) (laptop) / [`SETUP_ROCM_AMD.md`](./SETUP_ROCM_AMD.md) (serveur)
+- TFJS → [`TFJS_CONVERSION_README.md`](./TFJS_CONVERSION_README.md)
 
----
+## Avant de commencer
 
-## 0. Vue d'ensemble
-
-```
-┌──────────────┐   ┌─────────────┐   ┌─────────────┐   ┌──────────────┐   ┌─────────────┐
-│ 1. Fetch     │ → │ 2. Clean    │ → │ 3. Split    │ → │ 4. Train     │ → │ 5. Evaluate │
-│   + Other    │   │   (dedup)   │   │   train/val │   │   stage1+FT  │   │   test set  │
-│   class      │   │             │   │   /test     │   │              │   │             │
-└──────────────┘   └─────────────┘   └─────────────┘   └──────────────┘   └─────────────┘
-                                                                                  │
-                                                                                  ▼
-                                                            ┌──────────────┐   ┌─────────────┐
-                                                            │ 7. Publier   │ ← │ 6. Export   │
-                                                            │   HF Hub     │   │  TFLite/TFJS│
-                                                            └──────────────┘   └─────────────┘
-```
-
-Toutes les étapes sont idempotentes et peuvent être rejouées individuellement.
-
----
-
-## 1. Préparer l'environnement
-
-### 1.1 Selon la machine
-
-| Cible | Guide |
-|---|---|
-| Laptop développement (NVIDIA RTX 3070, CUDA 12.3) | [`SETUP_CUDA_NVIDIA.md`](./SETUP_CUDA_NVIDIA.md) |
-| Serveur entraînement (AMD RX 6600 XT, ROCm 7.2.1) | [`SETUP_ROCM_AMD.md`](./SETUP_ROCM_AMD.md) |
-
-### 1.2 Dépendances Python
+Toutes les commandes ci-dessous s'exécutent depuis `src/efficientnet_lite_gpu/`.
 
 ```bash
 cd src/efficientnet_lite_gpu
 python3.11 -m venv .venv-efficientnet
 source .venv-efficientnet/bin/activate
 pip install -r requirements.txt
+python -m tools.hardware_test           # sanity check GPU
 ```
 
-### 1.3 Vérification GPU
+Le script `tools/hardware_test.py` appelle `tools_nvidia_cuda.py` — les checks sont orientés NVIDIA et afficheront des warnings inoffensifs sur le serveur AMD. La seule chose qui compte vraiment : `tf.config.list_physical_devices('GPU')` non vide.
 
-```bash
-python -m tools.hardware_test
+## Les deux points d'entrée
+
+Le module a deux façons de lancer un entraînement. Elles existent pour des raisons historiques ; elles ne font pas exactement la même chose.
+
+**`python main.py --action <action>`** — workflow intégré. Passe par `tools/configuration_generator.py` et `tools/config_validator.py`, puis dispatche via le dict `ACTIONS` de `main.py:9` :
+
+```python
+ACTIONS = {
+    "train": ("train.train", "run"),
+    "eval": ("validation.validation", "run"),
+    "validation": ("validation.validation", "run"),
+    "test": ("test.test", "run"),
+}
 ```
 
-Doit lister au moins un GPU détecté par TensorFlow.
+`eval` et `validation` pointent vers le même module — doublon historique. Les flags CLI pour les options de validation se trouvent dans `main.py` (`--validation-image`, `--validation-threshold`, `--validation-model`, `--validation-dataset-dir`, `--validation-no-display`).
 
----
+**`python -m train.train`** — appelle directement `train/train.py`. Lit `config.yaml`, fait tout le pipeline d'entraînement, sauve le modèle et les rapports. Plus direct, c'est ce que j'utilise quand je ne touche pas à la config.
 
-## 2. Récupérer / préparer le dataset
+**`python -m train.run_train`** — script plus ancien, encore présent. Ne lit pas `config.yaml` proprement, il a ses propres constantes en haut de fichier. À garder pour debug quick-and-dirty, à ne pas utiliser pour un run versionné.
 
-Détails complets : [`DATASET_PREPARATION.md`](./DATASET_PREPARATION.md). Résumé express ci-dessous.
+## config.yaml, la source de vérité
 
-### 2.1 Téléchargement des images alimentaires
-
-```bash
-# Depuis src/efficientnet_lite_gpu/
-python -m tools.fetch_google_dataset               # toutes les classes
-python -m tools.fetch_google_dataset --dry-run     # vérifie la config sans télécharger
-```
-
-La config est dans `tools/dataset_download_config.yaml` (mots-clés, quotas, moteur de recherche DuckDuckGo par défaut).
-
-### 2.2 Ajout de la classe « Other » (négatifs)
-
-```bash
-python -m tools.download_other_class --count 800
-# Produit : train/dataset_raw_source/Other/
-```
-
-### 2.3 Déduplication inter-classes
-
-```bash
-python -m tools.clean_cross_class_duplicates \
-    --input-dir train/dataset_raw_source \
-    --output-dir train/dataset_raw_cleaned \
-    --quarantine-dir train/dataset_raw_cross_class_quarantine
-```
-
-### 2.4 Split train / val / test stratifié, hash-safe
-
-```bash
-python -m tools.split_dataset \
-    --input-dir train/dataset_raw_cleaned \
-    --output-dir train/dataset \
-    --train-ratio 0.7 --val-ratio 0.15 --test-ratio 0.15
-```
-
-Produit `train/dataset/{Train,Val,Test}/<ClassName>/...` sans fuite (vérification par hash SHA-256).
-
----
-
-## 3. Configurer l'entraînement
-
-Fichier : `config.yaml` à la racine de `src/efficientnet_lite_gpu/`.
-
-Paramètres-clés (valeurs actuelles en production) :
+Tout le pipeline lit `src/efficientnet_lite_gpu/config.yaml`. Les clés qui comptent vraiment pour un run typique :
 
 ```yaml
 train_config:
+  dataset_dir:      train/dataset_merged        # ce que train.py lit (Train/Val/Test dedans)
+  raw_dataset_dir:  train/dataset_raw_cleaned   # source si rebuild_clean_split est actif
+  rebuild_clean_split_before_train: true        # si true → split refait au début de train.py
+  results_dir:      train/results               # sorties (logs, métriques, plots)
+
   batch_size: 32
   image_size: 224
   initial_epochs: 30
@@ -127,216 +73,214 @@ train_config:
 
   model_config:
     model_name: mobilenet-v2-035    # ou efficientnet-b0 / mobilenet-v2-050 / 100
-    include_top: false
     weights: imagenet
-    trainable: false
+    trainable: false                # base gelée en stage 1, libérée en stage 2
     optimizer: adam
-    output_activation: softmax
-    learning_rate: 0.001
+    learning_rate: 0.001            # stage 1
     loss: sparse_categorical_crossentropy
-    label_smoothing: 0.0
+    label_smoothing: 0.0            # >0 active CategoricalCrossentropy
+    # EarlyStopping et ReduceLROnPlateau dedans aussi
 ```
 
-Pour changer de backbone : modifier `model_name`. Le code charge automatiquement la classe Keras correspondante et son `preprocess_input`.
+Quelques subtilités à connaître :
 
----
+- `training_divice` (oui, avec le typo) dans `config.yaml` est purement indicatif, le runtime utilise ce que TF détecte.
+- `label_smoothing > 0` fait basculer `train.py` en `CategoricalCrossentropy` avec labels one-hot (`train.py:197-209`). Sinon on reste en `sparse_categorical_crossentropy` avec labels `int`.
+- `fine_tune_lr` est un défaut de fallback, la vraie valeur utilisée est `stage2_learning_rate` si présente, sinon `fine_tune_lr`, sinon 2e-5 (`train.py:495`).
 
-## 4. Entraîner
+## Les backbones supportés
 
-### 4.1 Via `main.py` (workflow intégré)
+Dans `train/train.py:322-328` :
+
+```python
+def _get_backbone_class(model_name: str):
+    if name in ("efficientnet-b0", "efficientnet_b0"):
+        return tf.keras.applications.EfficientNetB0
+    elif name in ("efficientnet-b1", "efficientnet_b1"):
+        return tf.keras.applications.EfficientNetB1
+    elif name in ("efficientnet-b2", "efficientnet_b2"):
+        return tf.keras.applications.EfficientNetB2
+    elif name in ("efficientnet-b3", "efficientnet_b3"):
+        return tf.keras.applications.EfficientNetB3
+    elif name in ("mobilenet-v2-035", "mobilenet-v2-050", "mobilenet-v2-100"):
+        return tf.keras.applications.MobileNetV2
+```
+
+Pour MobileNetV2, le suffixe `-035/050/100` est parsé plus bas (`train.py:500`) pour configurer `alpha=0.35/0.50/1.0`. Ajouter un autre backbone demande deux fonctions (`_get_backbone_class` et `_get_preprocess_input`) et éventuellement la config spécifique du `alpha`/size.
+
+## Un run typique, de bout en bout
+
+### Préparer les données (une seule fois, ou quand les sources changent)
+
+Détails dans [`DATASET_PREPARATION.md`](./DATASET_PREPARATION.md). En résumé :
 
 ```bash
-python main.py --action train
+python -m tools.fetch_google_dataset
+python -m tools.download_other_class --count 800
+python -m tools.clean_cross_class_duplicates \
+    --input-dir  train/dataset_raw_source \
+    --output-dir train/dataset_raw_cleaned \
+    --quarantine-dir train/dataset_raw_cross_class_quarantine
 ```
 
-### 4.2 Via le module `train` directement
+Si `rebuild_clean_split_before_train: true` dans `config.yaml` (c'est le défaut actif), on saute le `split_dataset.py` manuel — `train.py` s'en charge.
+
+### Entraîner
 
 ```bash
 python -m train.train
 ```
 
-### 4.3 Script autonome (historique, basé sur `config.yaml` + overrides)
+Deux phases sous le capot, voir `train.py:_build_and_train_model` :
 
-```bash
-python -m train.run_train
-```
+- **Stage 1** — base gelée, on entraîne la tête (GAP → BN → Dropout → Dense). LR = `learning_rate` de la config (1e-3 aujourd'hui). Budget epochs = `initial_epochs`. `EarlyStopping(patience=3)` et `ReduceLROnPlateau` actifs. Le dernier run a en fait stoppé à 9 epochs sur les 30 budgétés.
+- **Stage 2** — toute la base dégelée, LR beaucoup plus petit (2e-5 par défaut). Budget `fine_tune_epochs`. Mêmes callbacks. Le gain observé sur le dernier run : +0.67 pt de `val_accuracy`.
 
-### 4.4 Sorties générées
+L'augmentation est appliquée **sur les pixels bruts [0, 255]**, puis le preprocess spécifique au backbone (`preprocess_input`) passe derrière — ordre fixé dans `_build_and_train_model` (`train.py:520-523`). Ne pas l'inverser, ça casse la normalisation attendue par ImageNet.
+
+### Ce que le training produit
+
+Dans `train/results/` (chemins contrôlés par `config.yaml`) :
 
 ```
 train/results/
-├── data_exploration/           # distribution des classes, échantillons, stats
+├── data_exploration/
+│   ├── class_distribution.png
+│   ├── sample_images.png
+│   └── dataset_statistics.png
 ├── training_logs/
-│   ├── training_history.json   # courbes stage1 + stage2
-│   └── best_metrics.json       # meilleur val_acc, leak-report, test scores
+│   ├── training_history.json       # stage1 + stage2, accuracy/loss par epoch
+│   └── best_metrics.json           # best val_acc, leak_report, métriques test
 ├── training_results/
-│   ├── training_config.json    # snapshot de la config utilisée
-│   ├── training_history.png
-│   └── training_history.json
+│   ├── training_config.json        # snapshot exact de la config utilisée
+│   ├── training_history.json
+│   └── training_history.png
 └── evaluation_results/
     ├── test_metrics.json
-    ├── test_class_report.json  # précision / rappel / F1 par classe
+    ├── test_class_report.json      # precision/recall/F1 par classe
+    ├── test_class_report.txt       # même chose au format lisible
     ├── confusion_matrix.png
     ├── performance_metrics.png
-    └── class_performance.png
+    ├── class_performance.png
+    └── test_confusion_matrix.npy   # matrice brute pour post-process
 ```
 
-Le modèle est sauvegardé sous `BestModelEfficientNetLite.keras` (nom historique, conservé pour compatibilité).
+Le modèle lui-même est sauvé à la racine du module sous `BestModelEfficientNetLite.keras`. Le nom est trompeur (rien à voir avec EfficientNet-Lite), il est conservé pour compatibilité avec les consommateurs en aval. On gardera l'alias tant qu'on ne refait pas ces intégrations.
 
-### 4.5 Sweep multi-configs
-
-Pour comparer plusieurs hyperparamètres :
-
-```bash
-python -m tools.generate_training_report
-# Lance 7-8 expériences définies dans le script, génère un rapport HTML comparatif
-```
-
-Voir [`HYPERPARAMETER_SWEEP_GUIDE.md`](./HYPERPARAMETER_SWEEP_GUIDE.md).
-
----
-
-## 5. Évaluer
-
-### 5.1 Sur le jeu de test
-
-Déjà exécuté automatiquement à la fin de `train.py`. Re-génération manuelle :
+### Évaluer un modèle existant
 
 ```bash
 python main.py --action eval
 ```
 
-### 5.2 Rapport complet (HTML + PDF)
+Rappel : `eval` et `validation` pointent sur le même module. Il y a aussi `--action test` pour un autre script (`test/test.py`) qui fait des prédictions sur un dossier image par image.
+
+### Générer le rapport PDF/HTML
 
 ```bash
 python -m tools.generate_validation_report
 ```
 
-Produit :
-- `exports/validation_report.html` (interactif)
-- `exports/rapport_validation_modeles.pdf` (livrable)
-- `exports/validation_metrics.json` (métriques machine-readable)
+Produit `exports/validation_report.html` + `exports/rapport_validation_modeles.pdf` + `exports/validation_metrics.json`.
 
-Voir [`RAPPORT_ENTRAINEMENT_MOBILENETV2.md`](./RAPPORT_ENTRAINEMENT_MOBILENETV2.md) pour un exemple de rapport de run réel.
+Le PDF est typiquement livré au PO en fin de sprint. Le HTML est plus confortable pour explorer : charts inter-format, matrices de confusion, performance par classe.
 
----
-
-## 6. Exporter pour le déploiement edge
-
-### 6.1 Conversion multi-formats
+## Export pour l'edge
 
 ```bash
-# Tout exporter (TFLite + TFLite-fp16 + TFJS)
-python -m tools.convert_model
-
-# Format unique
-python -m tools.convert_model --format tflite
-python -m tools.convert_model --format tfjs
-python -m tools.convert_model --input path/to/model.keras
+python -m tools.convert_model                    # all formats
+python -m tools.convert_model --format tflite    # ou tfjs
+python -m tools.convert_model --input autre_modele.keras
 ```
 
-Sorties :
+Choix de format dans `tools/convert_model.py` : `all` (défaut), `tflite`, `tfjs`. Il sort :
 
 ```
 exports/
-├── BestModelEfficientNetLite.keras   # source
-├── config.json                        # métadonnées (nom, shape, preprocessing)
-├── labels.json                        # id2label / label2id
+├── BestModelEfficientNetLite.keras
+├── config.json              # {model_type, input_size, preprocessing, class_names, ...}
+├── labels.json              # id2label / label2id
+├── README.md                # model card simple
 ├── tflite/
-│   ├── model.tflite                   # int (0.5 MB)
-│   └── model_fp16.tflite              # fp16 (0.8 MB, recommandé production)
+│   ├── model.tflite         # int (~0.5 MB sur MobileNetV2-0.35)
+│   └── model_fp16.tflite    # fp16 (~0.8 MB, souvent la meilleure option prod)
 └── tfjs/
     ├── model.json
     └── group1-shard*of*.bin
 ```
 
-Le modèle d'inférence **retire les couches de data augmentation** (elles ne doivent pas être actives en prédiction).
+Détail important : le modèle d'inférence exporté **retire les couches de data augmentation** (`RandomFlip`, `RandomRotation`, etc.). Elles ne doivent pas être actives en prédiction. Si on voit des prédictions qui varient pour la même image en inference, chercher là en premier.
 
-### 6.2 Validation post-export
+### Vérifier l'export
 
 ```bash
 python -m tools.validate_exports
 ```
 
-Compare Keras ↔ TFLite ↔ TFLite-fp16 sur le jeu de test et vérifie :
-- Accuracy / F1 par format
-- Accord (% de prédictions identiques) entre formats
-- Taille des fichiers et débit d'inférence
+Compare Keras vs TFLite vs TFLite-fp16 sur le jeu de test. Seuils dans le script (`validate_exports.py:bottom`) :
 
-Voir le rapport détaillé : [`RAPPORT_ENTRAINEMENT_MOBILENETV2.md`](./RAPPORT_ENTRAINEMENT_MOBILENETV2.md) §6.
+- `accuracy > 0.90` → PASS, sinon WARN.
+- Accord inter-format : `> 99 %` PASS, `> 95 %` WARN, sinon FAIL.
 
----
+Chiffres du dernier run (MobileNetV2-0.35) :
 
-## 7. Publier sur HuggingFace Hub (optionnel)
+- Keras 85.58 %, TFLite 84.75 %, TFLite-fp16 85.37 %.
+- Accord Keras ↔ TFLite-fp16 : 99.69 %.
+- Accord Keras ↔ TFLite int : 96.27 % — plus bas, on a gardé fp16 pour la prod.
+
+## Publier sur HuggingFace Hub (optionnel)
 
 ```bash
-# Se logger (une fois)
-huggingface-cli login   # ou export HF_TOKEN=xxx
-
-# Pousser
-python -m tools.push_to_hub --repo-id whispr/efficientnet-food-classifier
-python -m tools.push_to_hub --private   # repo privé
+huggingface-cli login       # une fois, ou export HF_TOKEN=...
+python -m tools.push_to_hub                           # default repo whispr/efficientnet-food-classifier
+python -m tools.push_to_hub --repo-id org/autre-nom
+python -m tools.push_to_hub --private
+python -m tools.push_to_hub --dry-run                 # liste les fichiers sans push
 ```
 
-Le script pousse le contenu de `exports/` (tous formats + `config.json` + `labels.json` + `README.md`).
+Le script pousse tout `exports/` — keras, tflite, tfjs, config.json, labels.json, README. Le README affiché sur HF vient directement de `exports/README.md` ; si on veut un vrai model card riche, l'éditer avant push ou avoir un template versionné.
 
----
+## Intégration côté client
 
-## 8. Intégration côté client
-
-| Cible | Format | Chargement |
-|---|---|---|
-| Backend Python | `.keras` | `tf.keras.models.load_model(path)` |
-| Mobile / Edge | `model_fp16.tflite` | `tf.lite.Interpreter(model_path=...)` |
-| Navigateur Web | `tfjs/model.json` | `tf.loadGraphModel('/path/model.json')` en JS |
-
-**Important** : toujours appliquer le preprocessing indiqué dans `exports/config.json` :
+La règle : toujours se fier à `exports/config.json` pour le preprocessing. Exemple actuel :
 
 ```json
-"preprocessing": {
-  "resize": [224, 224],
-  "normalization": "mobilenet_v2",
-  "note": "Use tf.keras.applications.mobilenet_v2.preprocess_input()"
+{
+  "model_type": "mobilenet-v2-035",
+  "input_size": 224,
+  "input_shape": [1, 224, 224, 3],
+  "preprocessing": {
+    "resize": [224, 224],
+    "normalization": "mobilenet_v2",
+    "note": "Use tf.keras.applications.mobilenet_v2.preprocess_input()"
+  },
+  "class_names": ["Baked Potato", "Burger", ..., "Sandwich"]
 }
 ```
 
-Pour TFJS, voir [`TFJS_CONVERSION_README.md`](./TFJS_CONVERSION_README.md).
+| Cible | Format à utiliser | Charger avec |
+|---|---|---|
+| Backend Python | `.keras` | `tf.keras.models.load_model(...)` |
+| Mobile / Edge | `model_fp16.tflite` | `tf.lite.Interpreter(model_path=...)` |
+| Navigateur | `tfjs/model.json` | `tf.loadGraphModel('/…/model.json')` en JS |
 
----
+Les détails spécifiques TFJS (installation `tensorflowjs`, limites de format) sont dans [`TFJS_CONVERSION_README.md`](./TFJS_CONVERSION_README.md).
 
-## 9. Scénarios typiques
+## Scénarios qui reviennent souvent
 
-### 9.1 Je change un hyperparamètre et je veux ré-entraîner vite
+**Je change un hyperparamètre** : éditer `config.yaml`, relancer `python -m train.train`, puis `convert_model` + `validate_exports`. Environ 20-30 min bout en bout sur le serveur AMD (2× RX 6600 XT), plus court si seulement stage 1.
 
-```bash
-# Modifier config.yaml
-python -m train.train
-python -m tools.convert_model
-python -m tools.validate_exports
-```
+**Je veux comparer plusieurs configs** : utiliser le sweep, `python -m tools.generate_training_report`. Il contient 8 expériences prédéfinies (voir `tools/generate_training_report.py` et [`HYPERPARAMETER_SWEEP_GUIDE.md`](./HYPERPARAMETER_SWEEP_GUIDE.md)). Filtrer avec `--experiments A,B,E`.
 
-### 9.2 Je veux comparer plusieurs backbones
+**Je change de backbone** : modifier `model_config.model_name` dans `config.yaml`. Pour un backbone pas encore listé dans `_get_backbone_class`, ajouter la paire `_get_backbone_class`/`_get_preprocess_input` dans `train.py`.
 
-Éditer `tools/generate_training_report.py` (liste `EXPERIMENTS`) puis :
+**Le modèle en prod ne se comporte pas comme le modèle Keras** :
 
-```bash
-python -m tools.generate_training_report --experiments A,B,C
-```
+1. Vérifier le preprocessing côté client (erreur n°1 en pratique).
+2. `python -m tools.validate_exports` et regarder l'accord. Si int trop bas, basculer fp16.
+3. Vérifier la version du runtime TFLite côté client (mismatch TF 2.15 / tflite-runtime 2.10 → comportements différents sur certains ops rares).
 
-### 9.3 J'ai de nouvelles images à intégrer
-
-Ajouter dans `train/dataset_raw_source/<Classe>/` puis relancer §2.3 et §2.4.
-
-### 9.4 Le modèle produit en edge ne se comporte pas comme en Keras
-
-Vérifier avec `tools.validate_exports` — si l'accord Keras ↔ TFLite tombe sous 95 %, soupçonner :
-- Preprocessing absent ou incorrect côté client
-- Quantization int trop agressive → préférer fp16
-- Version TFLite runtime incompatible
-
----
-
-## 10. Récapitulatif — commandes minimales pour un run complet
+## Une session complète depuis zéro
 
 ```bash
 cd src/efficientnet_lite_gpu
@@ -346,21 +290,18 @@ source .venv-efficientnet/bin/activate
 python -m tools.fetch_google_dataset
 python -m tools.download_other_class --count 800
 python -m tools.clean_cross_class_duplicates \
-    --input-dir train/dataset_raw_source \
+    --input-dir  train/dataset_raw_source \
     --output-dir train/dataset_raw_cleaned \
     --quarantine-dir train/dataset_raw_cross_class_quarantine
-python -m tools.split_dataset \
-    --input-dir train/dataset_raw_cleaned \
-    --output-dir train/dataset
 
-# Entraînement + export + validation
+# Entraînement + exports + validation
 python -m train.train
 python -m tools.convert_model
 python -m tools.validate_exports
 python -m tools.generate_validation_report
 
-# Publication (optionnel)
+# Push (optionnel)
 python -m tools.push_to_hub --repo-id whispr/efficientnet-food-classifier
 ```
 
-Durée typique (serveur ROCm 7.2.1 + RX 6600 XT, ~5000 images, MobileNetV2-0.35) : **~20-30 min** pour l'entraînement complet, **~2 min** pour les exports et validation.
+Durée observée sur le serveur (ROCm 7.2.1, 2× RX 6600 XT, 9 classes, ~6 400 images) : ~25 min pour le train complet (stage 1 + stage 2), ~90 s pour les exports, ~3 min pour la validation + rapport.
