@@ -5,7 +5,6 @@
 
 **Projet** : moderation-service / `src/efficientnet_lite_gpu/`
 **Framework** : TensorFlow 2.x (Keras) via ROCm
-**Ticket associé** : WHISPR-889
 
 ---
 

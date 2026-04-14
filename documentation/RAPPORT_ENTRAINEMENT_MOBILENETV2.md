@@ -1,8 +1,6 @@
 # Rapport d'entraînement — Classifieur d'images MobileNetV2-0.35
 
 **Projet** : moderation-service / image-classifier
-**Ticket** : WHISPR-889
-**Branche** : `WHISPR-889/mobilenetv2-training-pipeline`
 **Date du rapport** : 14 avril 2026
 **Auteur** : Zeyu HOU (HouEpitech)
 
