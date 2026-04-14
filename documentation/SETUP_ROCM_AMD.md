@@ -23,41 +23,50 @@ Ce document décrit la mise en place d'un environnement GPU **AMD + ROCm** sur l
 
 ## 2. Pré-requis matériels et système
 
-| Composant | Exigence |
-|---|---|
-| GPU | AMD Radeon Instinct MI-series / Radeon PRO / RDNA2+ supporté par ROCm (voir section 3) |
-| VRAM | ≥ 8 GB recommandés (batch=32 en 224×224) |
-| OS | **Ubuntu 22.04 LTS** (principalement supporté) ou RHEL 9 |
-| Kernel | ≥ 5.15 |
-| RAM | ≥ 32 GB pour l'entraînement long |
-| Stockage | ≥ 100 GB (datasets + checkpoints + sweeps) |
+| Composant | Exigence générique | Configuration réelle du serveur |
+|---|---|---|
+| GPU | AMD Instinct / Radeon PRO / RDNA2+ supporté par ROCm | **2× AMD Radeon RX 6600 XT** (Navi 23, `gfx1030`) |
+| VRAM | ≥ 8 GB | 8 GB par GPU |
+| OS | Ubuntu 22.04 / RHEL 9 officiellement | **Debian 12 (bookworm)** — support communautaire |
+| Kernel | ≥ 5.15 | 6.1.0-21-amd64 |
+| CPU | x86_64 moderne | Intel Xeon E5-2699 v3 (18C/36T @ 2.30 GHz) |
+| RAM | ≥ 32 GB recommandés | **15 GB** (contrainte à surveiller pour les gros sweeps) |
+| Stockage | ≥ 100 GB (datasets + checkpoints) | 456 GB / (87 % utilisé, 57 GB libres à avril 2026) |
 
 > ⚠️ ROCm **ne supporte pas** Windows pour l'entraînement TensorFlow. Le serveur doit être sous Linux natif (pas de WSL2).
 
+> ⚠️ **RX 6600 XT (gfx1030) non officiellement listé** dans la matrice ROCm AMD. Il fonctionne avec la variable d'environnement `HSA_OVERRIDE_GFX_VERSION=10.3.0` (voir §5.1 et §7). En production il serait préférable de migrer vers un GPU officiellement supporté (MI210, W7800) pour bénéficier du support AMD complet.
+
+> ⚠️ **RAM limitée à 15 GB** : pour les sweeps `results_sweep/` (jusqu'à 7 expériences avec chacun `dataset_raw_*/` de ~2 GB montés en mémoire via cache TF), surveiller `free -h` pendant les runs. Possible OOM système à craindre avant un OOM VRAM.
+
 ---
 
-## 3. Matrice de compatibilité TensorFlow-ROCm / ROCm / AMD
+## 3. Matrice de compatibilité TensorFlow / ROCm / AMD
 
-| tensorflow-rocm | ROCm | Python | OS |
+| TensorFlow (stock) | ROCm | Python | OS officiels |
 |---|---|---|---|
-| 2.14.x | 5.7 | 3.9 – 3.11 | Ubuntu 22.04 |
-| 2.13.x | 5.6 | 3.9 – 3.11 | Ubuntu 20.04 / 22.04 |
-| 2.12.x | 5.4 | 3.9 – 3.11 | Ubuntu 20.04 / 22.04 |
+| 2.19.x | 6.x / 7.x | 3.9 – 3.12 | Ubuntu 22.04 / 24.04 |
+| 2.16.x – 2.18.x | 6.x | 3.9 – 3.12 | Ubuntu 22.04 |
+| 2.14.x – 2.15.x | 5.7 (via `tensorflow-rocm`) | 3.9 – 3.11 | Ubuntu 22.04 |
+| 2.13.x | 5.6 (via `tensorflow-rocm`) | 3.9 – 3.11 | Ubuntu 20.04 / 22.04 |
 
-**Version recommandée pour ce projet** : `tensorflow-rocm==2.14.x` + ROCm 5.7.
+**Configuration réelle validée sur le serveur** : **TensorFlow 2.19 (stock) + ROCm 7.2.1 + Python 3.11.2** sur **Debian 12**, avec 2× RX 6600 XT (`gfx1030`) activées via `HSA_OVERRIDE_GFX_VERSION=10.3.0`.
 
-### 3.1 GPUs AMD officiellement supportés (ROCm 5.7)
+> ℹ️ **Changement de paradigme depuis ROCm 6** : le paquet historique `tensorflow-rocm` tend à être déprécié. À partir de ROCm 6+, AMD recommande d'utiliser le paquet **stock `tensorflow`** (déjà compatible avec le runtime ROCm installé au niveau système). Sur le serveur actuel, `pip show tensorflow` renvoie `tensorflow 2.19.0` et la détection GPU fonctionne directement.
 
-- Instinct MI210 / MI250 / MI300
+### 3.1 GPUs AMD officiellement supportés (ROCm 7.x)
+
+- Instinct MI210 / MI250 / MI300 (serveur pro — pleinement supportés)
 - Radeon PRO W6800 / W7800 / W7900
-- Radeon RX 7900 XT / XTX (support partiel — à valider)
-- Radeon RX 6800 / 6900 XT (support communautaire via `HSA_OVERRIDE_GFX_VERSION`)
+- Radeon RX 7900 XT / XTX
+- Radeon RX 6800 / 6900 XT — support communautaire via `HSA_OVERRIDE_GFX_VERSION`
+- **RX 6600 / 6600 XT** (notre serveur) — support communautaire via `HSA_OVERRIDE_GFX_VERSION=10.3.0`
 
 Liste officielle : <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/reference/system-requirements.html>
 
 ---
 
-## 4. Installation ROCm sur Ubuntu 22.04
+## 4. Installation ROCm
 
 ### 4.1 Préparation système
 
@@ -66,20 +75,20 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install -y wget gnupg2 curl lsb-release
 ```
 
-### 4.2 Ajout du dépôt ROCm
+### 4.2 Installation ROCm 7.x (méthode utilisée sur le serveur actuel)
+
+Sur **Debian 12** (cas non officiel mais fonctionnel) ou Ubuntu 22.04/24.04, utiliser l'installeur `amdgpu-install` en le forçant sur la cible Ubuntu équivalente :
 
 ```bash
-wget https://repo.radeon.com/amdgpu-install/5.7.1/ubuntu/jammy/amdgpu-install_5.7.50701-1_all.deb
-sudo apt install -y ./amdgpu-install_5.7.50701-1_all.deb
-```
-
-### 4.3 Installation du stack ROCm
-
-```bash
+# Ubuntu 22.04 (officiellement supporté)
+wget https://repo.radeon.com/amdgpu-install/7.2.1/ubuntu/jammy/amdgpu-install_7.2.60201-1_all.deb
+sudo apt install -y ./amdgpu-install_7.2.60201-1_all.deb
 sudo amdgpu-install --usecase=rocm --no-dkms
 ```
 
-> Le flag `--no-dkms` est recommandé si vous utilisez le pilote `amdgpu` déjà inclus dans le kernel. Sur un serveur sans écran (headless), préférer `--usecase=rocm` seul.
+> Sur **Debian 12** (configuration réelle du serveur) : installer le paquet `.deb` Ubuntu jammy fonctionne en général grâce à la compatibilité binaire, mais certaines dépendances (`lsb-release`, `libtinfo5`) peuvent demander un lien symbolique ou `apt --fix-broken install`. Vérifier la version installée avec `cat /opt/rocm/.info/version` (doit afficher `7.2.1`).
+
+Le flag `--no-dkms` est recommandé quand on utilise le pilote `amdgpu` déjà inclus dans le kernel (kernel ≥ 5.15). Sur un serveur headless, `--usecase=rocm` suffit.
 
 ### 4.4 Droits utilisateur
 
@@ -107,32 +116,40 @@ rocm-smi
 
 ## 5. Environnement Python
 
+Sur le serveur actuel (ROCm 7.2.1, Python 3.11.2) on utilise le **TensorFlow stock** directement :
+
 ```bash
 cd src/efficientnet_lite_gpu
 python3.11 -m venv .venv-rocm
 source .venv-rocm/bin/activate
 pip install --upgrade pip
 
-# TensorFlow-ROCm en priorité
-pip install tensorflow-rocm==2.14.0
-
-# Reste des dépendances SANS TensorFlow (pour éviter l'écrasement)
-grep -v '^tensorflow' requirements.txt | pip install -r /dev/stdin
+# Depuis ROCm 6+ : tensorflow stock suffit, le runtime ROCm est pris depuis /opt/rocm
+pip install -r requirements.txt
+# tensorflow==2.19.0 (notre version serveur) fonctionne avec ROCm 7.x
 ```
 
-> ⚠️ **Piège classique** : `pip install -r requirements.txt` installerait `tensorflow` (version CUDA) par-dessus `tensorflow-rocm`. Toujours installer `tensorflow-rocm` **en premier** puis filtrer le requirements.
+> ℹ️ **Évolution par rapport à ROCm 5.x** : il n'y a plus besoin d'installer `tensorflow-rocm` en premier et de filtrer le `requirements.txt`. Le `tensorflow` stock (≥ 2.16) détecte automatiquement l'installation `/opt/rocm` et utilise HIP. C'est cette méthode qui est en place sur le serveur.
 
-### 5.1 Variables d'environnement utiles
+> ⚠️ Si vous êtes encore sur ROCm ≤ 5.7, utiliser à la place :
+> ```bash
+> pip install tensorflow-rocm==2.14.0
+> grep -v '^tensorflow' requirements.txt | pip install -r /dev/stdin
+> ```
 
-À placer dans `~/.bashrc` ou dans un script `setup_rocm.sh` :
+### 5.1 Variables d'environnement utiles (OBLIGATOIRES sur RX 6600 XT)
+
+Sur notre serveur équipé de **RX 6600 XT**, la variable `HSA_OVERRIDE_GFX_VERSION` est **indispensable** pour que ROCm accepte les GPUs non listés. Placer dans `~/.bashrc` ou dans un script `setup_rocm.sh` sourcé avant chaque run :
 
 ```bash
-# Forcer le GPU target pour les RDNA2/3 non officiellement supportés
-# (exemple pour RX 6800 XT = gfx1030)
+# RX 6600 XT = Navi 23 = gfx1030 → override vers 10.3.0 (RX 6800/6900 XT déjà supporté)
 export HSA_OVERRIDE_GFX_VERSION=10.3.0
 
 # Limiter la visibilité GPU (équivalent de CUDA_VISIBLE_DEVICES)
+# Notre serveur a 2 GPUs, utiliser seulement le premier :
 export HIP_VISIBLE_DEVICES=0
+# Ou les deux (mais data parallel TF nécessite une stratégie MirroredStrategy explicite) :
+# export HIP_VISIBLE_DEVICES=0,1
 
 # Log verbeux pour debug
 # export AMD_LOG_LEVEL=3
@@ -232,18 +249,39 @@ Catalogue complet : <https://hub.docker.com/r/rocm/tensorflow/tags>
 
 ---
 
-## 10. Environnement de référence cible
+## 10. Environnement de référence — serveur actuel
 
-Configuration cible du serveur d'entraînement :
+Configuration exacte mesurée sur le serveur d'entraînement (avril 2026) :
 
-| Composant | Version |
+| Composant | Valeur |
 |---|---|
-| OS | Ubuntu 22.04 LTS (serveur, pas de bureau graphique) |
-| GPU | AMD (serveur de production) |
-| ROCm | 5.7.1 |
-| Pilote | `amdgpu` kernel stock |
-| Python | 3.11 |
-| TensorFlow-ROCm | 2.14.0 |
+| OS | **Debian 12 (bookworm)** |
+| Kernel | 6.1.0-21-amd64 |
+| CPU | Intel Xeon E5-2699 v3 (18C/36T @ 2.30 GHz) |
+| RAM | 15 GB |
+| GPU | **2× AMD Radeon RX 6600 XT** (Navi 23, `gfx1030`, 8 GB VRAM chacune) |
+| Pilote | `amdgpu` (kernel stock) |
+| **ROCm** | **7.2.1** |
+| Python | 3.11.2 |
+| TensorFlow | **2.19.0** (stock, pas `tensorflow-rocm`) |
+| Variable obligatoire | `HSA_OVERRIDE_GFX_VERSION=10.3.0` |
+| Stockage | 456 GB (87 % utilisé) |
+
+### 10.1 Checks rapides pour valider l'environnement serveur
+
+```bash
+# Version ROCm installée
+cat /opt/rocm/.info/version         # → 7.2.1
+
+# GPUs vus par le runtime ROCm
+rocminfo | grep -E "Name:.*gfx"     # → Name: gfx1030 (×2)
+rocm-smi --showproductname           # → 2× RX 6600 XT
+
+# TensorFlow
+python -c "import tensorflow as tf; print(tf.__version__); print(tf.config.list_physical_devices('GPU'))"
+# → 2.19.0
+# → [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU'), ...:GPU:1...]
+```
 
 ---
 
