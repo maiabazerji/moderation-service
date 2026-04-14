@@ -1,134 +1,75 @@
-# Rapport d'entraînement — Classifieur d'images MobileNetV2-0.35
+# Rapport d'entraînement — MobileNetV2-0.35
 
-**Projet** : moderation-service / image-classifier
-**Date du rapport** : 14 avril 2026
-**Auteur** : Zeyu HOU (HouEpitech)
+Auteur : Zeyu HOU — date : 14 avril 2026.
 
----
+Notes sur la dernière session d'entraînement du classifieur d'images alimentaires, après la bascule de backbone EfficientNet-B0 → MobileNetV2-0.35 et l'ajout de la classe `Other`. Les chiffres viennent de `train/results/` et `exports/` sur la branche `WHISPR-889/...`.
 
-## 1. Résumé exécutif
+## Ce qu'on a changé et pourquoi
 
-Ce rapport présente les résultats de la dernière session d'entraînement du classifieur d'images de nourriture, après migration du backbone d'**EfficientNet-B0** vers **MobileNetV2-0.35**. L'objectif principal était de réduire drastiquement la taille du modèle et la latence d'inférence pour un déploiement edge (mobile TFLite, navigateur TFJS), tout en introduisant une classe **« Other »** pour rejeter les images non-alimentaires.
+Le modèle précédent (EfficientNet-B0, 8 classes alimentaires, ~92 % d'accuracy test) était trop lourd pour la cible edge : ~17 MB en Keras, pas de version TFLite viable en dessous de quelques MB. On voulait :
 
-### Résultats clés
+- un modèle qui tient sous 1 MB en TFLite pour le navigateur/mobile ;
+- une classe `Other` (non-nourriture) pour éviter les prédictions hautes-confiance sur des entrées aberrantes.
 
-| Indicateur | Valeur |
-|---|---|
-| Accuracy (test) | **84.95 %** |
-| F1-score pondéré | **85.08 %** |
-| F1-score macro | 83.69 % |
-| Taille du modèle (TFLite int) | **0.5 MB** |
-| Taille du modèle (TFLite fp16) | 0.8 MB |
-| Débit d'inférence (TFLite fp16) | **~356 images/s** |
-| Accord Keras vs TFLite-fp16 | 99.69 % |
+D'où le choix **MobileNetV2 alpha=0.35**, la déclinaison la plus compacte officiellement supportée. On a gardé l'entrée 224×224 pour ne pas casser le preprocessing des consommateurs.
 
-Le modèle atteint un niveau de performance suffisant pour un déploiement en production edge, avec une empreinte mémoire **~34× plus petite** que le modèle Keras original (17 MB → 0.5 MB).
+## La config utilisée
 
----
+Depuis `config.yaml` au moment du run :
 
-## 2. Contexte et motivation
+- batch 32, 30 epochs budgétées stage 1 et stage 2, LR 1e-3 stage 1 / 2e-5 stage 2.
+- `label_smoothing: 0.0` (valeur supportée par le code mais non activée ici).
+- Augmentation : RandomFlip horizontal + RandomRotation 0.15 + RandomZoom 0.2 + RandomContrast 0.2 + RandomBrightness 0.2 + RandomTranslation 0.1.
+- Tête : `GAP → BN → Dropout(0.3) → Dense(9, softmax, L2=1e-4)`.
+- EarlyStopping patience 3 sur `val_loss`, ReduceLROnPlateau patience 3 factor 0.5.
 
-Le modèle EfficientNet-B0 précédemment utilisé offrait une accuracy de ~92 % sur 8 classes mais pesait trop lourd pour les cibles edge. Le nouveau pipeline :
+Les backbones autres valides dans le code actuel : `efficientnet-b0..b3`, `mobilenet-v2-035/050/100`.
 
-- Utilise **MobileNetV2 avec alpha = 0.35** (version la plus compacte),
-- Ajoute une **9e classe « Other »** alimentée depuis Caltech-101 pour rejeter les entrées non-alimentaires,
-- Conserve la taille d'entrée 224×224 pour rester compatible avec le pré-traitement client.
+## Le dataset
 
----
+Tiré de `best_metrics.json` du run :
 
-## 3. Configuration d'entraînement
+- Train / Val / Test : 4 497 / 963 / 964 images, total 6 424.
+- 9 classes : Baked Potato, Burger, Crispy Chicken, Donut, Fries, Hot Dog, Other, Pizza, Sandwich.
+- Fuite entre splits vérifiée par hash SHA-256 : 0. Tous les scores rapportés sont donc sur un test strictement disjoint de train/val.
 
-### 3.1 Architecture
+## Courbes d'entraînement
 
-| Paramètre | Valeur |
-|---|---|
-| Backbone | `tf.keras.applications.MobileNetV2` (alpha=0.35) |
-| Poids initiaux | ImageNet |
-| Taille d'entrée | 224 × 224 × 3 |
-| Nombre de classes | 9 |
-| Tête de classification | GAP → BatchNorm → Dropout(0.3) → Dense(9, softmax, L2=1e-4) |
+Les deux phases ont early-stoppé bien avant les 30 epochs budgétées.
 
-### 3.2 Hyperparamètres
+Stage 1 (base gelée, tête seule) :
 
-| Paramètre | Valeur |
-|---|---|
-| Batch size | 32 |
-| Optimiseur | Adam |
-| Learning rate (stage 1) | 1e-3 |
-| Learning rate (stage 2 / fine-tune) | 2e-5 |
-| Epochs configurés (stage 1 / 2) | 30 / 30 |
-| Epochs réels (early stopping) | **9 / 6** |
-| Loss | `sparse_categorical_crossentropy` |
-| EarlyStopping (patience) | 3 |
-| ReduceLROnPlateau (patience / factor) | 3 / 0.5 |
-
-### 3.3 Data augmentation
-
-| Transformation | Paramètre |
-|---|---|
-| RandomFlip | horizontal |
-| RandomRotation | 0.15 |
-| RandomZoom | 0.2 |
-| RandomContrast | 0.2 |
-| RandomBrightness | 0.2 |
-| RandomTranslation | 0.1 |
-
-### 3.4 Jeu de données
-
-| Split | Nombre d'images |
-|---|---|
-| Entraînement | 4 497 |
-| Validation | 963 |
-| Test | 964 |
-| **Total** | **6 424** |
-
-**Classes** : Baked Potato, Burger, Crispy Chicken, Donut, Fries, Hot Dog, **Other**, Pizza, Sandwich.
-
-**Vérification de fuite de données** : aucun chevauchement détecté (0 doublons de chemin, 0 doublons de hash entre train/val/test). Le pipeline utilise un outil dédié de préparation « leak-safe ».
-
----
-
-## 4. Courbes d'apprentissage
-
-### 4.1 Stage 1 — Entraînement de la tête (backbone gelé)
-
-| Epoch | Val Accuracy | Val Loss | Train Accuracy |
+| Epoch | val_accuracy | val_loss | train_accuracy |
 |---|---|---|---|
 | 1 | 79.02 % | 0.660 | — |
 | 9 (final) | 83.48 % | 0.551 | 83.78 % |
-| **Meilleur** | **84.15 %** | 0.531 | — |
+| meilleur | 84.15 % | 0.531 | — |
 
-L'EarlyStopping s'est déclenché après 9 epochs (sur 30 configurés) avec restauration des meilleurs poids.
+Stage 2 (base dégelée, fine-tune) :
 
-### 4.2 Stage 2 — Fine-tuning du backbone complet
-
-| Epoch | Val Accuracy | Val Loss | Train Accuracy |
+| Epoch | val_accuracy | val_loss | train_accuracy |
 |---|---|---|---|
 | 1 | 84.26 % | 0.558 | — |
 | 6 (final) | 84.60 % | 0.506 | 85.71 % |
-| **Meilleur** | **84.82 %** | 0.493 | — |
+| meilleur | 84.82 % | 0.493 | — |
 
-Gain marginal du fine-tuning : +0.67 point d'accuracy. L'écart faible suggère que la tête était déjà proche de l'optimum atteignable avec ce backbone compact.
+Le fine-tune n'apporte que +0.67 pt de val_accuracy. Deux hypothèses : soit le LR stage 2 est trop bas et on n'exploite pas assez le dégel, soit la tête a déjà capté l'essentiel de ce que le backbone 0.35 peut offrir et on plafonne. À tester au prochain sweep (voir plus bas).
 
----
-
-## 5. Résultats sur le jeu de test
-
-### 5.1 Métriques globales
+## Métriques sur le test
 
 | Métrique | Valeur |
 |---|---|
 | Accuracy | 84.95 % |
-| Précision (macro) | 84.86 % |
-| Rappel (macro) | 84.14 % |
-| F1-score (macro) | 83.69 % |
-| Précision (pondérée) | 86.38 % |
-| Rappel (pondéré) | 84.95 % |
-| F1-score (pondéré) | 85.08 % |
+| Precision macro | 84.86 % |
+| Recall macro | 84.14 % |
+| F1 macro | 83.69 % |
+| Precision pondérée | 86.38 % |
+| Recall pondéré | 84.95 % |
+| F1 pondéré | 85.08 % |
 
-### 5.2 Performance par classe
+Par classe (issu de `test_class_report.json`) :
 
-| Classe | Précision | Rappel | F1-score | Support |
+| Classe | Precision | Recall | F1 | Support |
 |---|---|---|---|---|
 | Baked Potato | 88.5 % | 78.6 % | 83.2 % | 98 |
 | Burger | 90.7 % | 72.3 % | 80.5 % | 94 |
@@ -136,90 +77,72 @@ Gain marginal du fine-tuning : +0.67 point d'accuracy. L'écart faible suggère 
 | Donut | 79.1 % | 90.8 % | 84.6 % | 142 |
 | Fries | 94.9 % | 78.1 % | 85.7 % | 96 |
 | Hot Dog | 92.5 % | 78.7 % | 85.1 % | 94 |
-| **Other** | **90.1 %** | **97.3 %** | **93.6 %** | 150 |
+| Other | 90.1 % | 97.3 % | 93.6 % | 150 |
 | Pizza | 87.9 % | 82.9 % | 85.3 % | 70 |
 | Sandwich | 56.9 % | 91.1 % | 70.1 % | 45 |
 
-### 5.3 Observations
+Ce qui saute aux yeux :
 
-- **Other** est la classe la plus fiable (F1 = 93.6 %), ce qui valide la stratégie de classe-rejet pour les images hors-distribution.
-- **Sandwich** est clairement la classe la plus faible (précision 56.9 %) : le modèle prédit trop souvent « Sandwich » à tort (rappel élevé, précision basse). Hypothèse : confusion visuelle avec Burger et Crispy Chicken. Support faible (45 images) aggrave le problème.
-- **Burger / Fries / Hot Dog** ont une précision élevée mais un rappel plus faible (~75-80 %) : le modèle est prudent sur ces classes et se rabat parfois sur des classes voisines.
+- `Other` marche très bien (F1 = 93.6 %). La stratégie de classe-rejet est validée dans le périmètre actuel.
+- `Sandwich` tire la moyenne vers le bas (F1 = 70.1 %, précision 56.9 % seulement). Le modèle sur-prédit "Sandwich" — beaucoup de faux positifs depuis Burger et Crispy Chicken. Support faible (45 images en test) aggrave le diagnostic et fragilise la métrique.
+- `Burger / Fries / Hot Dog` ont une précision haute mais un rappel plus bas (~75-80 %) : le modèle reconnaît bien quand il dit "Burger", mais rate des vrais burgers qu'il classe ailleurs (probablement Sandwich).
+- `Donut` est dans l'autre sens : rappel élevé (90.8 %), précision plus basse (79.1 %) — il prédit Donut un peu trop souvent, au détriment de Baked Potato et Hot Dog.
 
----
+## Exports et validation post-conversion
 
-## 6. Exportations et déploiement edge
+`tools/convert_model.py` sort Keras, TFLite int, TFLite fp16 et TFJS. `tools/validate_exports.py` compare les trois premiers sur le jeu de test :
 
-Trois formats d'export ont été générés via `tools/convert_model.py` puis validés par `tools/validate_exports.py` sur l'ensemble de test :
-
-| Format | Accuracy | F1 pondéré | Taille | Débit (img/s) |
+| Format | Accuracy | F1 pondéré | Taille | Débit |
 |---|---|---|---|---|
-| Keras (.keras) | 85.58 % | 85.64 % | 5.3 MB | 180 |
-| TFLite (int) | 84.75 % | 84.77 % | **0.5 MB** | 257 |
-| TFLite fp16 | 85.37 % | 85.43 % | 0.8 MB | **356** |
+| Keras | 85.58 % | 85.64 % | 5.3 MB | 180 img/s |
+| TFLite int | 84.75 % | 84.77 % | 0.5 MB | 257 img/s |
+| TFLite fp16 | 85.37 % | 85.43 % | 0.8 MB | 356 img/s |
 
-### 6.1 Cohérence inter-formats
+Accords inter-formats :
 
-| Comparaison | Accord |
-|---|---|
-| Keras vs TFLite fp16 | **99.69 %** |
-| Keras vs TFLite int | 96.27 % |
-| TFLite int vs TFLite fp16 | 96.16 % |
+- Keras vs TFLite fp16 : **99.69 %** → PASS (seuil 99 % dans `validate_exports.py`).
+- Keras vs TFLite int : 96.27 % → WARN (seuil 95-99 %).
+- TFLite int vs fp16 : 96.16 %.
 
-Le format **TFLite fp16** est recommandé pour le déploiement : il offre le meilleur compromis entre taille (0.8 MB), latence (356 img/s) et fidélité au modèle Keras (99.69 % d'accord).
+Conclusion pratique : **TFLite fp16** est le format à déployer. 0.8 MB, ~356 img/s en inférence CPU/edge, et quasi indiscernable du Keras sur les prédictions. La version int gagne ~0.3 MB en plus mais l'écart de 3.4 pts d'accord devient sensible sur les classes faibles — pas le bon tradeoff.
 
-**Note** : les mesures de validation post-export portent sur un jeu évaluation différent du test d'entraînement (964 vs 723 images), d'où les légères différences d'accuracy entre les deux sections.
+Nuance sur les chiffres : l'accuracy affichée dans ce tableau (85.58 %) est supérieure à celle du tableau "Métriques sur le test" (84.95 %) parce que `validate_exports.py` tourne sur un split de test légèrement différent (723 vs 964 images — le script re-construit son propre jeu depuis `train/dataset_merged/Test`). C'est cohérent à 1 % près, pas inquiétant, mais à garder en tête quand on compare.
 
----
+## Ce qu'on gagne vs EfficientNet-B0
 
-## 7. Comparaison avec la baseline EfficientNet-B0
-
-| Métrique | EfficientNet-B0 (ancien) | MobileNetV2-0.35 (nouveau) | Δ |
+| | B0 (ancien) | MobileNetV2-0.35 (nouveau) | Delta |
 |---|---|---|---|
-| Accuracy test | 91.40 % | 84.95 % | −6.45 pts |
+| Test accuracy | 91.40 % | 84.95 % | −6.45 pts |
 | F1 pondéré | 91.47 % | 85.08 % | −6.39 pts |
-| Nombre de classes | 8 | 9 (+ Other) | — |
-| Taille (déployable) | ~17 MB (Keras) | **0.5 MB (TFLite)** | **−97 %** |
+| Classes | 8 | 9 (dont `Other`) | +1 |
+| Taille déployable | ~17 MB Keras | 0.5 MB TFLite | −97 % |
 
-**Analyse** : la perte d'accuracy (~6 points) est le prix à payer pour un modèle ~34× plus léger et compatible avec une classe de rejet. Ce compromis est jugé acceptable pour la cible edge, où la contrainte principale est la taille et la latence.
+On paie ~6 pts d'accuracy pour un modèle ~34× plus léger, avec en bonus une classe de rejet. Sur la cible edge, l'argument principal est la taille et la latence — le tradeoff est tenable. Sur un backend Python côté serveur, il y aurait moins d'intérêt.
 
----
+## Limites du run actuel
 
-## 8. Limitations et pistes d'amélioration
+1. **Sandwich sous-représenté**. 45 images en test, précision 56.9 %. Il faut soit plus de données pour Sandwich (cible ≥ 200 en test), soit un `class_weight` dans `model.fit()`. Aucune des deux voies n'est en place.
+2. **Fine-tune peu utile** (+0.67 pt). À creuser au sweep : LR stage 2 un peu plus haut (5e-5 ? 1e-4 ?) ou dégeler partiellement le backbone au lieu de tout-ou-rien.
+3. **Quantization int imparfaite** (accord 96.27 % vs Keras). Un Quantization-Aware Training donnerait probablement +1-2 pts d'accord, au prix d'un pipeline d'entraînement plus lourd.
+4. **Alpha=0.35 pourrait être en dessous du sweet spot**. Tester 0.50 (modèle ~1 MB) au prochain run pour voir si ça vaut 2-3 pts d'accuracy supplémentaires.
 
-### 8.1 Limitations identifiées
+Pour mémoire, le code supporte déjà `label_smoothing > 0` (bascule en `CategoricalCrossentropy`) — pas activé ici, candidat pour un prochain sweep.
 
-1. **Classe Sandwich sous-représentée** (45 images en test) avec une précision faible (56.9 %).
-2. **Fine-tuning peu productif** (+0.67 pt seulement) — possible sous-régularisation ou LR stage 2 sous-optimal.
-3. **Classe Donut légèrement sur-prédite** (précision 79.1 % contre un rappel de 90.8 %) : le modèle confond avec Baked Potato / Hot Dog.
+## Fichiers livrés
 
-### 8.2 Pistes d'amélioration (futurs tickets)
+Tout est sous `src/efficientnet_lite_gpu/exports/` :
 
-- **Rééquilibrage du dataset** : viser ≥ 200 images par classe en test, et augmenter les samples de Sandwich dans l'entraînement.
-- **Augmentation ciblée** : appliquer un `class_weight` ou un sur-échantillonnage des classes faibles.
-- **Exploration alpha=0.50** : tester un backbone un peu plus gros (MobileNetV2-0.50) pour voir si +1 MB vaut +2-3 points d'accuracy.
-- **Label smoothing** : déjà supporté dans le code (`label_smoothing` dans `model_config`), à activer lors du prochain sweep.
-- **Quantization-aware training** (QAT) : pourrait réduire l'écart Keras ↔ TFLite int (96.27 % seulement) en entraînant directement en précision réduite.
+- `BestModelEfficientNetLite.keras` — source Keras (nom legacy).
+- `tflite/model.tflite`, `tflite/model_fp16.tflite`.
+- `tfjs/model.json` + shards `.bin`.
+- `config.json` — métadonnées (input shape, preprocessing, class_names).
+- `labels.json` — id2label / label2id.
+- `validation_metrics.json` — résultats bruts de `validate_exports.py`.
+- `validation_report.html` + `rapport_validation_modeles.pdf` — version lisible, livrable PO.
 
----
+## Verdict
 
-## 9. Artefacts livrés
+Le modèle est prêt pour un pilote edge (browser/mobile), pas pour remplacer l'existant côté backend. Deux axes à prioriser avant de figer une v2 :
 
-| Artefact | Chemin |
-|---|---|
-| Modèle Keras source | `src/efficientnet_lite_gpu/exports/BestModelEfficientNetLite.keras` |
-| TFLite (int) | `src/efficientnet_lite_gpu/exports/tflite/` |
-| TFJS | `src/efficientnet_lite_gpu/exports/tfjs/` |
-| Config déploiement | `exports/config.json` |
-| Labels | `exports/labels.json` |
-| Métriques validation | `exports/validation_metrics.json` |
-| Rapport HTML d'entraînement | `exports/validation_report.html` |
-| Rapport PDF de validation | `exports/rapport_validation_modeles.pdf` |
-
----
-
-## 10. Conclusion
-
-La migration vers **MobileNetV2-0.35** a atteint ses objectifs de compacité (modèle **~34× plus léger**) et de latence (**~356 img/s en fp16**), au prix d'une baisse d'accuracy de ~6 points par rapport au baseline EfficientNet-B0. L'ajout de la classe **Other** renforce la robustesse face aux entrées hors-distribution (F1 = 93.6 % sur cette classe).
-
-Le modèle est **prêt pour un déploiement edge en pilote**. Les travaux d'amélioration prioritaires concernent le rééquilibrage de la classe Sandwich et l'exploration d'un backbone légèrement plus gros (alpha 0.50) avant de figer la version de production.
+1. corriger le déséquilibre Sandwich (data ou `class_weight`) ;
+2. sweep rapide alpha=0.50 vs 0.35 + LR stage 2 × {5e-5, 1e-4} pour voir si on peut récupérer 2-3 pts sans exploser la taille.
