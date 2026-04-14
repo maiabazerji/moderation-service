@@ -61,7 +61,7 @@ class Trainer:
         self.warmup_epochs: int = 3
 
         self.use_amp = getattr(device, "type", "cpu") == "cuda"
-        self.scaler = torch.cuda.amp.GradScaler() if self.use_amp else None
+        self.scaler = torch.amp.GradScaler("cuda") if self.use_amp else None
 
     def _train_one_epoch(self) -> Tuple[float, float]:
         self.model.train()
@@ -102,13 +102,11 @@ class Trainer:
         with torch.no_grad():
             for x, y in tqdm(self.val_loader, desc="val", leave=False):
                 x, y = x.to(self.device), y.to(self.device)
-                if self.use_amp:
-                    with torch.amp.autocast("cuda"):
-                        logits = self.model(x)
-                        loss = self.criterion(logits, y)
-                else:
-                    logits = self.model(x)
-                    loss = self.criterion(logits, y)
+                # Validate in fp32 -- AMP fp16 can overflow on extreme logits and produce NaN
+                logits = self.model(x).float()
+                loss = self.criterion(logits, y)
+                if not torch.isfinite(loss):
+                    continue
                 running_loss += loss.item() * x.size(0)
                 correct += (torch.argmax(logits, dim=1) == y).sum().item()
                 total += y.size(0)
@@ -147,8 +145,9 @@ class Trainer:
             if isinstance(ck, dict) and "optimizer_state_dict" in ck:
                 try:
                     self.optimizer.load_state_dict(ck["optimizer_state_dict"])
-                except Exception:
-                    pass
+                except (ValueError, KeyError, RuntimeError) as e:
+                    # Common when resuming with a different param group layout (e.g. freeze toggled).
+                    print(f"[trainer] Optimizer state not restored ({e}); continuing with fresh optimizer.")
             print(f"Resumed from: {resume_from}")
 
         for epoch in range(1, epochs + 1):

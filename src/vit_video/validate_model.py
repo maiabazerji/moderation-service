@@ -282,8 +282,9 @@ def download_external_test_videos(output_dir: Path, videos_per_query: int = 2) -
         try:
             import imageio_ffmpeg
             ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
-        except Exception:
-            pass
+        except ImportError:
+            # ffmpeg is genuinely optional here; callers degrade gracefully.
+            ffmpeg_path = None
 
     downloaded: Dict[str, List[Path]] = {}
     consecutive_fails = 0

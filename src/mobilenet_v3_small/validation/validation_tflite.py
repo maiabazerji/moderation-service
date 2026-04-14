@@ -6,6 +6,7 @@ Usage from CLI:
 Or from main.py via the 'eval_tflite' action.
 """
 
+import logging
 import sys
 from pathlib import Path
 
@@ -13,6 +14,8 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 import tensorflow as tf
+
+logger = logging.getLogger(__name__)
 
 # Import the canonical health-label mapping (src/common/health_labels.py).
 try:
@@ -28,7 +31,7 @@ def load_tflite_model(model_path: str):
     interpreter.allocate_tensors()
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
-    print("TFLite model loaded:", model_path)
+    logger.info("TFLite model loaded: %s", model_path)
     return interpreter, input_details, output_details
 
 
@@ -80,7 +83,7 @@ def predict_image(interpreter, input_details, output_details, class_names, img_p
     best_class = class_names[best_idx]
 
     for name, p in zip(class_names, preds):
-        print(f"  {name}: {p:.2%}")
+        logger.info("  %s: %.2f%%", name, p * 100)
 
     is_unhealthy = best_class in UNHEALTHY_CLASSES
 
@@ -124,7 +127,7 @@ def run(cfg: dict):
         tflite_path = Path.cwd() / "BestModelEfficientNetLite_inference.tflite"
 
     if not tflite_path.exists():
-        print(f"TFLite model not found. Run convert_to_tflite.py first.")
+        logger.error("TFLite model not found. Run convert_to_tflite.py first.")
         return
 
     class_names = get_class_names(train_dir)
@@ -132,15 +135,15 @@ def run(cfg: dict):
 
     eval_dir = Path.cwd() / "validation" / "images"
     if not eval_dir.exists():
-        print(f"No validation images directory found at {eval_dir}")
+        logger.warning("No validation images directory found at %s", eval_dir)
         return
 
     image_exts = {".jpg", ".jpeg", ".png", ".bmp"}
     images = [p for p in eval_dir.iterdir() if p.suffix.lower() in image_exts]
     if not images:
-        print("No images found in validation/images/")
+        logger.warning("No images found in validation/images/")
         return
 
     for img_path in images:
-        print(f"\n--- {img_path.name} ---")
+        logger.info("--- %s ---", img_path.name)
         show_prediction(interpreter, input_details, output_details, class_names, str(img_path), threshold=0.4)
