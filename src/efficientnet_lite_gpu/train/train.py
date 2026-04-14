@@ -197,6 +197,11 @@ def _sanitize_datasets_if_needed(train_cfg: dict, paths: dict):
 
 def _build_datasets(train_cfg: dict, paths: dict, img_size: tuple[int, int]):
     batch_size = train_cfg["batch_size"]
+    model_cfg = train_cfg.get("model_config", {})
+    label_smoothing = float(model_cfg.get("label_smoothing", 0.0))
+
+    # Use categorical labels when label smoothing is enabled.
+    train_label_mode = "categorical" if label_smoothing > 0 else "int"
 
     train_dir = paths["train_dir"]
     test_dir = paths["test_dir"]
@@ -205,6 +210,7 @@ def _build_datasets(train_cfg: dict, paths: dict, img_size: tuple[int, int]):
     print("Using train dir:", train_dir)
     print("Using val dir:", val_dir)
     print("Using test dir:", test_dir)
+    print(f"Label mode (train/val): {train_label_mode}  (label_smoothing={label_smoothing})")
 
     # Mapping de classes unique et strict sur les trois splits.
     class_names_train_raw = sorted([d.name for d in train_dir.iterdir() if d.is_dir()])
@@ -246,7 +252,7 @@ def _build_datasets(train_cfg: dict, paths: dict, img_size: tuple[int, int]):
     val_ds = image_dataset_from_directory(
         val_dir,
         labels="inferred",
-        label_mode="int",
+        label_mode=train_label_mode,
         class_names=class_names,
         image_size=img_size,
         batch_size=batch_size,
@@ -255,7 +261,7 @@ def _build_datasets(train_cfg: dict, paths: dict, img_size: tuple[int, int]):
     train_ds = image_dataset_from_directory(
         train_dir,
         labels="inferred",
-        label_mode="int",
+        label_mode=train_label_mode,
         class_names=class_names,
         image_size=img_size,
         batch_size=batch_size,
@@ -292,15 +298,21 @@ def _build_datasets(train_cfg: dict, paths: dict, img_size: tuple[int, int]):
 
 def _build_data_augmentation(train_cfg: dict) -> tf.keras.Sequential:
     da = train_cfg["data_augmentation"]
-    return tf.keras.Sequential([
+    layers = [
         tf.keras.layers.RandomFlip(da.get("randomFlip", "horizontal")),
-        tf.keras.layers.RandomRotation(da.get("randomRotation", 0.05)),
-        tf.keras.layers.RandomZoom(da.get("randomZoom", 0.1)),
-        tf.keras.layers.RandomContrast(da.get("randomContrast", 0.1)),
-    ], name="data_augmentation")
+        tf.keras.layers.RandomRotation(da.get("randomRotation", 0.15)),
+        tf.keras.layers.RandomZoom(da.get("randomZoom", 0.2)),
+        tf.keras.layers.RandomContrast(da.get("randomContrast", 0.2)),
+    ]
+    if da.get("randomBrightness"):
+        layers.append(tf.keras.layers.RandomBrightness(da["randomBrightness"]))
+    if da.get("randomTranslation"):
+        t = da["randomTranslation"]
+        layers.append(tf.keras.layers.RandomTranslation(t, t))
+    return tf.keras.Sequential(layers, name="data_augmentation")
 
 
-def _get_efficientnet_class(model_name: str):
+def _get_backbone_class(model_name: str):
     name = model_name.lower()
     if name in ("efficientnet-b0", "efficientnet_b0"):
         return tf.keras.applications.EfficientNetB0
@@ -310,20 +322,18 @@ def _get_efficientnet_class(model_name: str):
         return tf.keras.applications.EfficientNetB2
     elif name in ("efficientnet-b3", "efficientnet_b3"):
         return tf.keras.applications.EfficientNetB3
+    elif name in ("mobilenet-v2-035", "mobilenet-v2-050", "mobilenet-v2-100"):
+        return tf.keras.applications.MobileNetV2
     else:
         raise ValueError(f"Unsupported model_name: {model_name}")
 
 
-def _get_efficientnet_preprocess(model_name: str):
+def _get_preprocess_input(model_name: str):
     name = model_name.lower()
-    if name in ("efficientnet-b0", "efficientnet_b0"):
+    if name.startswith("efficientnet"):
         return tf.keras.applications.efficientnet.preprocess_input
-    elif name in ("efficientnet-b1", "efficientnet_b1"):
-        return tf.keras.applications.efficientnet.preprocess_input
-    elif name in ("efficientnet-b2", "efficientnet_b2"):
-        return tf.keras.applications.efficientnet.preprocess_input
-    elif name in ("efficientnet-b3", "efficientnet_b3"):
-        return tf.keras.applications.efficientnet.preprocess_input
+    elif name.startswith("mobilenet-v2"):
+        return tf.keras.applications.mobilenet_v2.preprocess_input
     else:
         raise ValueError(f"Unsupported model_name for preprocess: {model_name}")
 
@@ -476,39 +486,54 @@ def _build_and_train_model(train_cfg: dict,
                            num_classes: int,
                            train_ds,
                            val_ds):
-    STAGE1_EPOCHS = int(train_cfg.get("stage1_epochs", 12))
-    STAGE2_EPOCHS = int(train_cfg.get("stage2_epochs", 6))
+    STAGE1_EPOCHS = int(train_cfg.get("stage1_epochs",
+                        train_cfg.get("initial_epochs", 12)))
+    STAGE2_EPOCHS = int(train_cfg.get("stage2_epochs",
+                        train_cfg.get("fine_tune_epochs", 6)))
     fine_tune = train_cfg["fine_tune"]
     early_stopping_patience = int(train_cfg.get("early_stopping_patience", 3))
     reduce_lr_patience = int(train_cfg.get("reduce_lr_patience", 2))
 
-    # EfficientNetB0 fine-tuning defaults: stable stage-1 LR + smaller stage-2 LR.
-    stage1_lr = float(train_cfg.get("stage1_learning_rate", 1e-3))
-    stage2_lr = float(train_cfg.get("stage2_learning_rate", 2e-5))
+    # Fine-tuning defaults: stable stage-1 LR + smaller stage-2 LR.
+    stage1_lr = float(train_cfg.get("stage1_learning_rate",
+                      model_cfg.get("learning_rate", 1e-3)))
+    stage2_lr = float(train_cfg.get("stage2_learning_rate",
+                      train_cfg.get("fine_tune_lr", 2e-5)))
 
     data_augmentation = _build_data_augmentation(train_cfg)
 
-    EfficientNetClass = _get_efficientnet_class(model_cfg["model_name"])
-    preprocess_input = _get_efficientnet_preprocess(model_cfg["model_name"])
+    model_name = model_cfg["model_name"]
+    BackboneClass = _get_backbone_class(model_name)
+    preprocess_input = _get_preprocess_input(model_name)
 
-    base_model = EfficientNetClass(
-        include_top=model_cfg["include_top"],
-        weights=model_cfg["weights"],
-        input_shape=img_size + (3,)
-    )
+    if model_name.lower().startswith("mobilenet-v2"):
+        alpha = {"035": 0.35, "050": 0.50, "100": 1.0}[model_name.split("-")[-1]]
+        base_model = BackboneClass(
+            include_top=model_cfg["include_top"],
+            weights=model_cfg["weights"],
+            input_shape=img_size + (3,),
+            alpha=alpha,
+        )
+    else:
+        base_model = BackboneClass(
+            include_top=model_cfg["include_top"],
+            weights=model_cfg["weights"],
+            input_shape=img_size + (3,),
+        )
     base_model.trainable = model_cfg["trainable"]
 
     inputs = tf.keras.Input(shape=img_size + (3,))
-    # Pipeline unique de prétraitement train/val/test dans le graphe du modèle.
-    x = tf.keras.layers.Lambda(preprocess_input, name="efficientnet_preprocess")(inputs)
-    x = data_augmentation(x)
+    # Augmentation first (on raw [0,255] pixels), then preprocess for backbone.
+    x = data_augmentation(inputs)
+    x = tf.keras.layers.Lambda(preprocess_input, name="backbone_preprocess")(x)
     x = base_model(x, training=False)
     x = tf.keras.layers.GlobalAveragePooling2D(name="avg_pool")(x)
     x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Dropout(0.3)(x)
     outputs = tf.keras.layers.Dense(
         num_classes,
-        activation=model_cfg["output_activation"]
+        activation=model_cfg["output_activation"],
+        kernel_regularizer=tf.keras.regularizers.l2(1e-4),
     )(x)
 
     model = tf.keras.Model(inputs, outputs)
@@ -519,9 +544,18 @@ def _build_and_train_model(train_cfg: dict,
         "config": {"learning_rate": stage1_lr}
     })
 
+    label_smoothing = float(model_cfg.get("label_smoothing", 0.0))
+    if label_smoothing > 0:
+        loss_fn = tf.keras.losses.CategoricalCrossentropy(
+            label_smoothing=label_smoothing
+        )
+        print(f"Using CategoricalCrossentropy with label_smoothing={label_smoothing}")
+    else:
+        loss_fn = model_cfg["loss"]
+
     model.compile(
         optimizer=optimizer,
-        loss=model_cfg["loss"],
+        loss=loss_fn,
         metrics=model_cfg["metrics"]
     )
 
@@ -587,7 +621,7 @@ def _build_and_train_model(train_cfg: dict,
 
         model.compile(
             optimizer=optimizer_ft,
-            loss=model_cfg["loss"],
+            loss=loss_fn,
             metrics=model_cfg["metrics"]
         )
 
