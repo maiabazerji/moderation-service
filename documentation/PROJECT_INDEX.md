@@ -33,10 +33,33 @@ This index centralizes the active project entry points, runtime commands, and su
   - `src/efficientnet_lite_gpu/run_fetch_google_dataset.bat`
   - `src/efficientnet_lite_gpu/run_fetch_google_dataset_dry_run.bat`
 
-## Environment Notes
+## End-to-End Pipeline / Pipeline de bout en bout
 
+- Full workflow (dataset → train → export → deploy):
+  - `documentation/PIPELINE.md`
+- Dataset preparation (fetch, clean, split, leak-safe):
+  - `documentation/DATASET_PREPARATION.md`
+- Hyperparameter sweep:
+  - `documentation/HYPERPARAMETER_SWEEP_GUIDE.md`
+
+## Environment Setup / Configuration de l'environnement
+
+- Laptop NVIDIA (RTX 3070 Laptop, CUDA 12.3):
+  - `documentation/SETUP_CUDA_NVIDIA.md`
+- Serveur AMD (2× RX 6600 XT, ROCm 7.2.1, Debian 12):
+  - `documentation/SETUP_ROCM_AMD.md`
 - Windows long path issue fix:
   - `documentation/WINDOWS_LONG_PATHS.md`
+
+## Training Reports / Rapports d'entraînement
+
+- Last production run (MobileNetV2-0.35, French):
+  - `documentation/RAPPORT_ENTRAINEMENT_MOBILENETV2.md`
+
+## Model Export / Export du modèle
+
+- TensorFlow.js conversion notes:
+  - `documentation/TFJS_CONVERSION_README.md`
 
 ## Architecture Reference
 
