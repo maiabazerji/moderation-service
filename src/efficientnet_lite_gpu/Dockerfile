@@ -1,6 +1,6 @@
 FROM nvcr.io/nvidia/tensorflow:24.07-tf2-py3
 
-# 2️⃣ 基本环境变量
+# Base environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     LANG=C.UTF-8 \
