@@ -1,49 +1,37 @@
 # Project Documentation Index
 
-## Purpose
+Centralised list of the docs under `documentation/`. Grouped by what you're trying to do, not by file type.
 
-This index centralizes the active project entry points, runtime commands, and supporting documents.
-
-## Active Module
+## Active module
 
 - Main module: `src/efficientnet_lite_gpu`
-- Pipeline entrypoint: `src/efficientnet_lite_gpu/main.py`
-- Dataset fetch entrypoint: `src/efficientnet_lite_gpu/tools/fetch_google_dataset.py`
+- CLI entry point: `src/efficientnet_lite_gpu/main.py` (`--action train | eval | validation | test`)
+- Direct train entry point: `python -m train.train` (reads `config.yaml`)
 
-## Recommended Run Flow
+## Starting a run
 
-1. `cd src/efficientnet_lite_gpu`
-2. `pip install -r requirements.txt`
-3. Run one action:
-   - `python main.py --action train`
-   - `python main.py --action eval`
-   - `python main.py --action test`
+- Full workflow (data → train → export → deploy): `PIPELINE.md`
+- Dataset prep (fetch, clean, split): `DATASET_PREPARATION.md`
+- Hyperparameter sweep: `HYPERPARAMETER_SWEEP_GUIDE.md`
+
+## Environment
+
+- Laptop (NVIDIA RTX 3070, CUDA 12.3): `SETUP_CUDA_NVIDIA.md`
+- Server (AMD 2× RX 6600 XT, ROCm 7.2.1, Debian 12): `SETUP_ROCM_AMD.md`
+- Windows long paths: `WINDOWS_LONG_PATHS.md`
+
+## Results and exports
+
+- Last production run (MobileNetV2-0.35, French): `RAPPORT_ENTRAINEMENT_MOBILENETV2.md`
+- TensorFlow.js conversion: `TFJS_CONVERSION_README.md`
+
+## Project conventions and history
+
+- `1_architecture/1_system_design.md` — high-level design
+- `STRUCTURE_CONVENTIONS.md` — folder / naming rules
+- `DEPRECATION_MAP.md` — legacy / duplicated scripts tracked here
 
 ## Dependencies
 
-- Main runtime dependencies: `src/efficientnet_lite_gpu/requirements.txt`
-- Fetch-only dependencies: `src/efficientnet_lite_gpu/requirements-fetch-only.txt`
-
-## Dataset Fetch
-
-- CLI:
-  - `python -m tools.fetch_google_dataset`
-  - `python -m tools.fetch_google_dataset --dry-run`
-- Windows scripts:
-  - `src/efficientnet_lite_gpu/run_fetch_google_dataset.bat`
-  - `src/efficientnet_lite_gpu/run_fetch_google_dataset_dry_run.bat`
-
-## Environment Notes
-
-- Windows long path issue fix:
-  - `documentation/WINDOWS_LONG_PATHS.md`
-
-## Architecture Reference
-
-- `documentation/1_architecture/1_system_design.md`
-- Structure conventions: `documentation/STRUCTURE_CONVENTIONS.md`
-
-## Repository Cleanup Notes
-
-- Legacy or duplicated scripts are tracked in:
-  - `documentation/DEPRECATION_MAP.md`
+- Runtime: `src/efficientnet_lite_gpu/requirements.txt`
+- Fetch-only (no TF): `src/efficientnet_lite_gpu/requirements-fetch-only.txt`

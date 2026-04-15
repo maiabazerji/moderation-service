@@ -11,6 +11,10 @@ RESET = "\033[0m"
 CONFIG_PATH = Path("config.yaml")
 
 def config(model_name : str):
+    if CONFIG_PATH.exists():
+        # Keep user-managed config values; do not overwrite existing file.
+        return load_config()
+
     device = check_gpus()
 
     cfg = {

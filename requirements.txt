@@ -5,3 +5,8 @@ scikit-learn
 opencv-python
 Pillow
 pyyaml
+icrawler
+requests
+ddgs
+setuptools
+typing-extensions

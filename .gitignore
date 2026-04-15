@@ -73,11 +73,10 @@ src/efficientnet_lite_gpu/simple_efficientnet_food.h5
 *.pickle
 
 # Dataset
-src/efficientnet_lite_gpu/train/dataset/Train
-src/efficientnet_lite_gpu/train/dataset/Test
-src/efficientnet_lite_gpu/train/dataset/Val
-src/efficientnet_lite_gpu/train/dataset/tmp
-src/efficientnet_lite_gpu/train/dataset/cache
+src/efficientnet_lite_gpu/train/dataset/
+src/efficientnet_lite_gpu/train/dataset_*/
+src/efficientnet_lite_gpu/train/results_sweep/
+src/efficientnet_lite_gpu/exports/
 efficientnet_food_finetuned.h5
 src/efficientnet_lite_gpu/BestModelEfficientNetLite.h5
 

@@ -1,7 +1,14 @@
 train_config:
   training_device: cpu
   mixed_precision: false
-  dataset_dir: train/dataset
+  dataset_dir: train/dataset_merged
+  raw_dataset_dir: train/dataset_raw_cleaned
+  rebuild_clean_split_before_train: true
+  split_train_ratio: 0.7
+  split_val_ratio: 0.15
+  split_test_ratio: 0.15
+  split_seed: 42
+  split_mode: copy
   results_dir: train/results
   data_exploration_dir: data_exploration
   evaluation_results_dir: evaluation_results
@@ -10,31 +17,35 @@ train_config:
   train_dir: Train
   val_dir: Val
   test_dir: Test
-  batch_size: 8
+  batch_size: 32
   image_size: 224
-  initial_epochs: 5
+  initial_epochs: 30
   fine_tune: true
-  fine_tune_epochs: 2
+  fine_tune_epochs: 30
+  fine_tune_lr: 1.0e-5
   data_augmentation:
     randomFlip: horizontal
-    randomRotation: 0.05
-    randomZoom: 0.1
-    randomContrast: 0.1
+    randomRotation: 0.15
+    randomZoom: 0.2
+    randomContrast: 0.2
+    randomBrightness: 0.2
+    randomTranslation: 0.1
   model_config:
-    model_name: efficientnet-b0
+    model_name: mobilenet-v2-035
     include_top: false
     weights: imagenet
     input_shape: (224, 224, 3)
     trainable: false
     optimizer: adam
     output_activation: softmax
-    learning_rate: 0.01
+    learning_rate: 0.001
     loss: sparse_categorical_crossentropy
+    label_smoothing: 0.0
     metrics:
     - accuracy
     EarlyStopping:
       monitor: val_loss
-      patience: 8
+      patience: 3
       restore_best_weights: true
     ReduceLROnPlateau:
       monitor: val_loss
