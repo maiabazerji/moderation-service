@@ -1,7 +1,7 @@
 """
 Streamlit chat mockup demo for food moderation.
 
-Tests both ViT (video) and EfficientNet (image) models in a chat UI.
+Tests both ViT (video) and MobileNetV2 (image) models in a chat UI.
 Users upload an image (or video), the selected model classifies it,
 and the moderation decision is shown inline.
 
@@ -163,8 +163,8 @@ def _find_model(filenames: list[str], search_roots: list[Path]) -> Path | None:
 # Model loaders (cached)
 # ---------------------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
-def load_efficientnet_model():
-    """Load the EfficientNet TFLite model from common locations.
+def load_mobilenetv2_model():
+    """Load the MobileNetV2 TFLite model from common locations.
     Returns (interpreter, input_dtype, path, classes)."""
     try:
         import tensorflow as tf
@@ -177,9 +177,9 @@ def load_efficientnet_model():
         REPO_ROOT / "src" / "mobilenet_v2_small" / "tflite",
     ]
     candidates = [
-        "efficientnet_food.tflite",
-        "BestModelEfficientNetLite_inference.tflite",
-        "BestModelEfficientNetLite.tflite",
+        # legacy name kept for back-compat
+        "BestModelMobileNetV2_inference.tflite",
+        
         "model.tflite",
     ]
     path = _find_model(candidates, search)
@@ -271,10 +271,10 @@ def load_vit_model():
 # ---------------------------------------------------------------------------
 # Inference
 # ---------------------------------------------------------------------------
-def predict_efficientnet(image: Image.Image) -> tuple[str, float, np.ndarray, list[str]]:
-    """Run EfficientNet/MobileNet TFLite inference on a single image. Never raises."""
+def predict_mobilenetv2(image: Image.Image) -> tuple[str, float, np.ndarray, list[str]]:
+    """Run MobileNetV2 TFLite inference on a single image. Never raises."""
     try:
-        interpreter, input_dtype, _, classes = load_efficientnet_model()
+        interpreter, input_dtype, _, classes = load_mobilenetv2_model()
         if interpreter is None:
             return "(model not loaded)", 0.0, np.zeros(16), CLASSES_16
 
@@ -303,7 +303,7 @@ def predict_efficientnet(image: Image.Image) -> tuple[str, float, np.ndarray, li
         name = classes[idx] if idx < len(classes) else f"class_{idx}"
         return name, float(preds[idx]), preds, classes
     except Exception as e:
-        st.error(f"EfficientNet inference failed: {e}")
+        st.error(f"MobileNetV2 inference failed: {e}")
         return "(error)", 0.0, np.zeros(16), CLASSES_16
 
 
@@ -442,18 +442,18 @@ with st.sidebar:
     st.header("⚙️ Settings")
 
     # Check which models are available to set a sensible default
-    _eff_check = load_efficientnet_model()
+    _eff_check = load_mobilenetv2_model()
     _vit_check = load_vit_model()
     _eff_available = _eff_check[0] is not None
     _vit_available = _vit_check[0] is not None
 
     model_options = []
     if _eff_available:
-        model_options.append("EfficientNet (TFLite)")
+        model_options.append("MobileNetV2 (TFLite)")
     if _vit_available:
         model_options.append("ViT (TorchScript)")
     if not model_options:
-        model_options = ["EfficientNet (TFLite)", "ViT (TorchScript)"]
+        model_options = ["MobileNetV2 (TFLite)", "ViT (TorchScript)"]
 
     model_choice = st.selectbox("Model", model_options, index=0)
     threshold = 0.4
@@ -476,7 +476,7 @@ with st.sidebar:
                         path = download_from_hf(repo_id=repo_full, filename=file_choice)
                     if path:
                         st.success(f"{path.name} ({path.stat().st_size / (1024 * 1024):.1f} MB)")
-                        load_efficientnet_model.clear()
+                        load_mobilenetv2_model.clear()
                         load_vit_model.clear()
             else:
                 st.caption("No model files in repo")
@@ -579,9 +579,9 @@ if uploaded is not None and uploaded.file_id not in st.session_state.processed_f
     try:
         with st.spinner(f"Moderation check ({model_choice})..."):
             start = time.perf_counter()
-            if model_choice.startswith("EfficientNet"):
-                # EfficientNet is image-only; use middle frame for video
-                cls, conf, probs, classes = predict_efficientnet(image)
+            if model_choice.startswith("MobileNetV2"):
+                # MobileNetV2 is image-only; use middle frame for video
+                cls, conf, probs, classes = predict_mobilenetv2(image)
             else:
                 cls, conf, probs, classes = predict_vit(video_frames if is_video else image)
             latency_ms = (time.perf_counter() - start) * 1000.0

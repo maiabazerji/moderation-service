@@ -614,12 +614,12 @@ def make_cells(model_name: str, slug: str, hf_model: str, tf_class: str, tf_modu
 
 
 def main():
-    eff = make_cells("EfficientNetB0", "efficientnet", "maia2000/efficientnet-food-binary",
-                     "EfficientNetB0", "efficientnet", "efficientnetb0")
-    mob = make_cells("MobileNetV3Small", "mobilenet", "maia2000/mobilenet-food-binary",
-                     "MobileNetV3Small", "mobilenet_v3", "mobilenetv3small")
-    (REPO / "src/mobilenet_v2_small/efficientnet_colab.ipynb").write_text(json.dumps(eff, indent=1), encoding="utf-8")
-    (REPO / "src/mobilenet_v3_small/mobilenet_colab.ipynb").write_text(json.dumps(mob, indent=1), encoding="utf-8")
+    v2 = make_cells("MobileNetV2", "mobilenet_v2", "maia2000/mobilenetv2-food",
+                    "MobileNetV2", "mobilenet_v2", "mobilenetv2")
+    v3 = make_cells("MobileNetV3Small", "mobilenet", "maia2000/mobilenet-food-binary",
+                    "MobileNetV3Small", "mobilenet_v3", "mobilenetv3small")
+    (REPO / "src/mobilenet_v2_small/mobilenet_v2_colab.ipynb").write_text(json.dumps(v2, indent=1), encoding="utf-8")
+    (REPO / "src/mobilenet_v3_small/mobilenet_colab.ipynb").write_text(json.dumps(v3, indent=1), encoding="utf-8")
     print("wrote both notebooks")
 
 
