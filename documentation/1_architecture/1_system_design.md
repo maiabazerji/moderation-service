@@ -475,7 +475,7 @@ Classification automatique pour détecter :
 
 **Technologies utilisées** :
 - CNN (Convolutional Neural Networks) pré-entraînés
-- Transfer learning avec ResNet-50 et EfficientNet
+- Transfer learning avec MobileNetV2 (0.35/0.50/1.0) et MobileNetV3-Small
 - Ensemble methods pour améliorer la précision
 - Multi-scale analysis pour différentes résolutions
 
@@ -527,8 +527,11 @@ Identification des doublons et contenus similaires :
 # Architecture du modèle principal de classification d'images
 class ImageModerationModel:
     def __init__(self):
-        # Modèle CNN basé sur EfficientNet-B3
-        self.backbone = EfficientNet.from_pretrained('efficientnet-b3')
+        # Modèle CNN basé sur MobileNetV2-0.35
+        self.backbone = tf.keras.applications.MobileNetV2(
+            alpha=0.35, include_top=False, weights='imagenet',
+            input_shape=(224, 224, 3),
+        )
         self.classifier = tf.keras.Sequential([
             tf.keras.layers.GlobalAveragePooling2D(),
             tf.keras.layers.Dropout(0.3),

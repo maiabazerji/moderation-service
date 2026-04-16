@@ -15,7 +15,7 @@ Generates a self-contained HTML report comparing:
   - Inference speed
 
 Usage:
-    cd src/efficientnet_lite_gpu
+    cd src/mobilenet_v2_small
     python -m tools.validate_exports
 """
 
@@ -52,7 +52,7 @@ EXPORTS_DIR = Path("exports")
 TEST_DIR = Path("train/dataset_merged/Test")
 IMG_SIZE = (224, 224)
 
-KERAS_MODEL = Path("BestModelEfficientNetLite.keras")
+KERAS_MODEL = Path("BestModelMobileNetV2.keras")
 
 MODELS = {
     "Keras": KERAS_MODEL,
@@ -108,12 +108,10 @@ def _load_keras_model_compat(model_path: Path) -> tf.keras.Model:
     import zipfile
 
     mobilenet_v2_preprocess_fn = tf.keras.applications.mobilenet_v2.preprocess_input
-    efficientnet_preprocess_fn = tf.keras.applications.efficientnet.preprocess_input
 
     custom_objects = {
         "preprocess_input": mobilenet_v2_preprocess_fn,
         "backbone_preprocess": mobilenet_v2_preprocess_fn,
-        "efficientnet_preprocess": efficientnet_preprocess_fn,
     }
 
     # --- First, try a direct load (fast path) ---

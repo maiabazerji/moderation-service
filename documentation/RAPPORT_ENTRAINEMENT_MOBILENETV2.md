@@ -23,7 +23,7 @@ Depuis `config.yaml` au moment du run :
 - Tête : `GAP → BN → Dropout(0.3) → Dense(9, softmax, L2=1e-4)`.
 - EarlyStopping patience 3 sur `val_loss`, ReduceLROnPlateau patience 3 factor 0.5.
 
-Les backbones autres valides dans le code actuel : `efficientnet-b0..b3`, `mobilenet-v2-035/050/100`.
+Les backbones valides dans le code actuel : `mobilenet-v2-035`, `mobilenet-v2-050`, `mobilenet-v2-100`. Le support EfficientNet a été retiré du pipeline lors du nettoyage post-migration.
 
 ## Le dataset
 
@@ -130,9 +130,9 @@ Pour mémoire, le code supporte déjà `label_smoothing > 0` (bascule en `Catego
 
 ## Fichiers livrés
 
-Tout est sous `src/efficientnet_lite_gpu/exports/` :
+Tout est sous `src/mobilenet_v2_small/exports/` :
 
-- `BestModelEfficientNetLite.keras` — source Keras (nom legacy).
+- `BestModelMobileNetV2.keras` — source Keras (ancien nom `BestModelEfficientNetLite.keras` abandonné lors du nettoyage).
 - `tflite/model.tflite`, `tflite/model_fp16.tflite`.
 - `tfjs/model.json` + shards `.bin`.
 - `config.json` — métadonnées (input shape, preprocessing, class_names).

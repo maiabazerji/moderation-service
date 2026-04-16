@@ -1,13 +1,13 @@
 version: '3.8'
 services:
-  efficientnet_lite:
+  mobilenet_v2_small:
     build: .
-    container_name: efficientnet_lite_app
-    command: python src/efficientnet_lite/main.py
+    container_name: mobilenet_v2_small_app
+    command: python src/mobilenet_v2_small/main.py
     volumes:
       - ./src:/app/src
     environment:
-      - IMAGE_PATH=/app/src/efficientnet_lite/test.png
+      - IMAGE_PATH=/app/src/mobilenet_v2_small/test.png
       - CUDA_VISIBLE_DEVICES=""
     ports:
       - "8000:8000"

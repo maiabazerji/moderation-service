@@ -53,7 +53,7 @@ def init(args):
         func(cfg)
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="EfficientNet pipeline runner")
+    parser = argparse.ArgumentParser(description="MobileNetV2 pipeline runner")
 
     parser.add_argument(
         "--action", "--actions",
@@ -65,8 +65,8 @@ def parse_args():
 
     parser.add_argument(
         "--model",
-        default="efficientnet-b0",
-        help="Model name to use, e.g. efficientnet-b0",
+        default="mobilenet-v2-035",
+        help="Model name to use, e.g. mobilenet-v2-035",
     )
 
     parser.add_argument(

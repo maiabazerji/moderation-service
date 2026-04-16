@@ -2,12 +2,12 @@
 """
 Hyperparameter sweep report generator — REAL training.
 
-Runs the actual two-stage EfficientNet training pipeline multiple times
+Runs the actual two-stage training pipeline (MobileNetV2 default) multiple times
 with different hyperparameter configurations, then generates a
 self-contained HTML report from the real results.
 
 Usage:
-    cd src/efficientnet_lite_gpu
+    cd src/mobilenet_v2_small
     python -m tools.generate_training_report          # run all experiments
     python -m tools.generate_training_report --report  # report only (skip training)
 """
@@ -44,7 +44,7 @@ EXPERIMENTS = [
             "fine_tune": True,
         },
         "model_overrides": {
-            "model_name": "efficientnet-b0",
+            "model_name": "mobilenet-v2-035",
         },
     },
     {
@@ -59,7 +59,7 @@ EXPERIMENTS = [
             "fine_tune": True,
         },
         "model_overrides": {
-            "model_name": "efficientnet-b0",
+            "model_name": "mobilenet-v2-035",
         },
     },
     {
@@ -74,7 +74,7 @@ EXPERIMENTS = [
             "fine_tune": True,
         },
         "model_overrides": {
-            "model_name": "efficientnet-b0",
+            "model_name": "mobilenet-v2-035",
         },
     },
     {
@@ -89,12 +89,12 @@ EXPERIMENTS = [
             "fine_tune": True,
         },
         "model_overrides": {
-            "model_name": "efficientnet-b0",
+            "model_name": "mobilenet-v2-035",
         },
     },
     {
         "id": "E",
-        "name": "E: EfficientNet-B1",
+        "name": "E: MobileNetV2-050",
         "overrides": {
             "batch_size": 8,
             "stage1_learning_rate": 1e-3,
@@ -104,7 +104,7 @@ EXPERIMENTS = [
             "fine_tune": True,
         },
         "model_overrides": {
-            "model_name": "efficientnet-b1",
+            "model_name": "mobilenet-v2-050",
         },
     },
     {
@@ -119,7 +119,7 @@ EXPERIMENTS = [
             "fine_tune": False,
         },
         "model_overrides": {
-            "model_name": "efficientnet-b0",
+            "model_name": "mobilenet-v2-035",
         },
     },
     {
@@ -134,7 +134,7 @@ EXPERIMENTS = [
             "fine_tune": True,
         },
         "model_overrides": {
-            "model_name": "efficientnet-b0",
+            "model_name": "mobilenet-v2-035",
         },
     },
     {
@@ -149,7 +149,7 @@ EXPERIMENTS = [
             "fine_tune": True,
         },
         "model_overrides": {
-            "model_name": "efficientnet-b0",
+            "model_name": "mobilenet-v2-035",
         },
     },
 ]
@@ -680,7 +680,7 @@ def build_html_report(all_results: list, ds_stats: dict, output_path: Path) -> P
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EfficientNet Hyperparameter Sweep Report</title>
+<title>MobileNetV2 Hyperparameter Sweep Report</title>
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
   body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -724,7 +724,7 @@ def build_html_report(all_results: list, ds_stats: dict, output_path: Path) -> P
 <body>
 <div class="container">
 
-<h1>EfficientNet Food Classification — Hyperparameter Sweep</h1>
+<h1>MobileNetV2 Food Classification — Hyperparameter Sweep</h1>
 <p class="subtitle">Generated: {now} | {len(all_results)} configurations | Real training data</p>
 
 <div class="section">
@@ -785,7 +785,7 @@ def build_html_report(all_results: list, ds_stats: dict, output_path: Path) -> P
 </div>
 
 <div class="footer">
-  Whispr Moderation Service — EfficientNet Hyperparameter Sweep<br>
+  Whispr Moderation Service — MobileNetV2 Hyperparameter Sweep<br>
   Real training results from train/train.py pipeline
 </div>
 
@@ -827,7 +827,7 @@ def main():
             os.chdir(alt)
             print(f"Changed working directory to: {alt}")
         else:
-            print("ERROR: Run this script from src/efficientnet_lite_gpu/")
+            print("ERROR: Run this script from src/mobilenet_v2_small/")
             sys.exit(1)
 
     if not args.report:

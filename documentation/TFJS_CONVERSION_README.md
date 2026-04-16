@@ -4,8 +4,8 @@ This project currently trains and exports models with TensorFlow/Keras, and also
 
 ## 1) What was found in this repository
 
-- Training pipeline saves a Keras model (`model.save(...)`) in `src/efficientnet_lite_gpu/train/train.py`.
-- TFLite export pipeline in `src/efficientnet_lite_gpu/convert_to_tflite.py` does:
+- Training pipeline saves a Keras model (`model.save(...)`) in `src/mobilenet_v2_small/train/train.py`.
+- TFLite export pipeline in `src/mobilenet_v2_small/convert_to_tflite.py` does:
   1. Load Keras `.h5`
   2. Export to SavedModel directory
   3. Convert SavedModel to `.tflite`

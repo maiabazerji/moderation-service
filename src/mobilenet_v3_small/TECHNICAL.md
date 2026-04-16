@@ -4,7 +4,7 @@
 
 Lightweight image classifier for food content moderation. Classifies a single image as **healthy**, **unhealthy**, or **not_food** using a MobileNetV3-Small backbone with frozen-backbone transfer learning.
 
-Same training pipeline as the EfficientNet-B0 model in this repo — only the backbone differs. Use this when latency / model size matters more than peak accuracy.
+Same training pipeline as the MobileNetV2 model in this repo — only the backbone differs. Use this when latency / model size matters more than peak accuracy.
 
 | | |
 |---|---|
@@ -21,9 +21,9 @@ Same training pipeline as the EfficientNet-B0 model in this repo — only the ba
 
 ## 1. Why MobileNetV3-Small
 
-- ~2.5 M parameters — roughly half the size of EfficientNet-B0
+- ~2.5 M parameters — comparable in size to MobileNetV2-0.35 but with a different design
 - Designed for mobile CPUs (depthwise separable conv, h-swish activation, NAS-derived blocks)
-- Lower accuracy ceiling than EfficientNet (typically 1–3 points lower on this dataset) in exchange for ~2-3× faster inference and ~4× smaller TFLite
+- Different accuracy/latency tradeoff compared to MobileNetV2 in exchange for competitive inference speed and ~4× smaller TFLite than the full-size models in this repo
 - Use it when you want sub-10 ms moderation per image on commodity mobile hardware
 
 ---
@@ -43,7 +43,7 @@ The 3-class variant requires the Food-101 + Imagenette fallback (see [DATASET.md
 
 `mobilenet_colab.ipynb` is generated from `scripts/build_colab_notebooks.py`. It is **disconnect-resilient**: each cell is self-contained, checkpoints sync to Google Drive, training resumes via `model.fit(initial_epoch=N)`.
 
-### Cells (identical structure to EfficientNet)
+### Cells (identical structure to the MobileNetV2 notebook)
 
 1. **Setup** — install HF deps, mount Drive at `/content/drive/MyDrive/whispr-checkpoints/mobilenet/`.
 2. **Download** — try HF dataset; on <1000 frames fall back to Food-101 + Imagenette into `/content/frames/{class}/`.
@@ -86,7 +86,7 @@ All are uploaded to the HF model repo with retries.
 
 ## 5. App integration (`app_mockup_demo/app.py`)
 
-The TFLite runner (`predict_efficientnet`) handles MobileNet's binary head:
+The TFLite runner (`predict_mobilenetv2`) handles MobileNet's binary head:
 
 - The trained model emits a **single sigmoid scalar**, output shape `(1, 1)`.
 - The app detects `preds.size == 1` and expands to `[1-p, p]` with labels `["healthy", "unhealthy"]`.

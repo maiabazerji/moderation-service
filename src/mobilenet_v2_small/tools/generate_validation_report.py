@@ -12,7 +12,7 @@ Generates a professional PDF report with:
   - Data integrity / leakage verification
 
 Usage:
-    cd src/efficientnet_lite_gpu
+    cd src/mobilenet_v2_small
     python -m tools.generate_validation_report
 """
 
@@ -58,7 +58,7 @@ MARGIN = 2.0 * cm
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 def _root() -> Path:
-    """Return the project root (src/efficientnet_lite_gpu)."""
+    """Return the project root (src/mobilenet_v2_small)."""
     # When run as  python -m tools.generate_validation_report  the CWD is the root.
     return Path.cwd()
 
@@ -474,7 +474,7 @@ def _section_export_formats(ss):
 
     headers = ["Format", "Fichier(s)", "Taille"]
     rows = [
-        ["Keras (.keras)", "BestModelEfficientNetLite.keras", "5.3 MB"],
+        ["Keras (.keras)", "BestModelMobileNetV2.keras", "5.3 MB"],
         ["TensorFlow.js", "model.json + group1-shard1of1.bin", "1.5 MB"],
         ["TFLite (dynamic range)", "model.tflite", "0.5 MB"],
         ["TFLite (float16)", "model_float16.tflite", "0.8 MB"],

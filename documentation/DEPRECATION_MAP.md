@@ -8,18 +8,18 @@ Track duplicated or ambiguous scripts and define a primary path without deleting
 
 ### Test Action Entrypoint
 
-- Primary path: `src/efficientnet_lite_gpu/test/test.py`
-- Legacy/secondary path: `src/efficientnet_lite_gpu/test.py`
+- Primary path: `src/mobilenet_v2_small/test/test.py`
+- Legacy/secondary path: `src/mobilenet_v2_small/test.py`
 - Reason:
   - `main.py` dispatch imports `from test.test import run as test_run`.
 - Policy:
-  - Keep `src/efficientnet_lite_gpu/test.py` for now.
+  - Keep `src/mobilenet_v2_small/test.py` for now.
   - Do not introduce new usage of this file in docs or scripts.
 
 ### Training Pipeline
 
-- Primary path: `src/efficientnet_lite_gpu/train/train.py`
-- Legacy/secondary path: `src/efficientnet_lite_gpu/train/run_train.py`
+- Primary path: `src/mobilenet_v2_small/train/train.py`
+- Legacy/secondary path: `src/mobilenet_v2_small/train/run_train.py`
 - Reason:
   - `main.py` currently dispatches `from train.train import run as train_run`.
 - Policy:
@@ -28,7 +28,7 @@ Track duplicated or ambiguous scripts and define a primary path without deleting
 
 ### Dataset Fetch Naming
 
-- Current path: `src/efficientnet_lite_gpu/tools/fetch_google_dataset.py`
+- Current path: `src/mobilenet_v2_small/tools/fetch_google_dataset.py`
 - Behavior note:
   - Script supports multiple engines (duckduckgo/bing/google), not only Google.
 - Migration direction:

@@ -1,6 +1,6 @@
 # Pipeline de bout en bout
 
-Note pratique pour traverser l'ensemble du module `src/efficientnet_lite_gpu/` : depuis les images brutes jusqu'au modèle déployable. Le document suit la façon dont ça se passe réellement aujourd'hui, avec les vraies commandes et les vrais chemins.
+Note pratique pour traverser l'ensemble du module `src/mobilenet_v2_small/` : depuis les images brutes jusqu'au modèle déployable. Le document suit la façon dont ça se passe réellement aujourd'hui, avec les vraies commandes et les vrais chemins.
 
 Les docs connexes :
 
@@ -12,12 +12,12 @@ Les docs connexes :
 
 ## Avant de commencer
 
-Toutes les commandes ci-dessous s'exécutent depuis `src/efficientnet_lite_gpu/`.
+Toutes les commandes ci-dessous s'exécutent depuis `src/mobilenet_v2_small/`.
 
 ```bash
-cd src/efficientnet_lite_gpu
-python3.11 -m venv .venv-efficientnet
-source .venv-efficientnet/bin/activate
+cd src/mobilenet_v2_small
+python3.11 -m venv .venv-mobilenet-v2
+source .venv-mobilenet-v2/bin/activate
 pip install -r requirements.txt
 python -m tools.hardware_test           # sanity check GPU
 ```
@@ -47,7 +47,7 @@ ACTIONS = {
 
 ## config.yaml, la source de vérité
 
-Tout le pipeline lit `src/efficientnet_lite_gpu/config.yaml`. Les clés qui comptent vraiment pour un run typique :
+Tout le pipeline lit `src/mobilenet_v2_small/config.yaml`. Les clés qui comptent vraiment pour un run typique :
 
 ```yaml
 train_config:
@@ -72,7 +72,7 @@ train_config:
     randomTranslation: 0.1
 
   model_config:
-    model_name: mobilenet-v2-035    # ou efficientnet-b0 / mobilenet-v2-050 / 100
+    model_name: mobilenet-v2-035    # variantes : mobilenet-v2-035 / 050 / 100
     weights: imagenet
     trainable: false                # base gelée en stage 1, libérée en stage 2
     optimizer: adam
@@ -90,19 +90,11 @@ Quelques subtilités à connaître :
 
 ## Les backbones supportés
 
-Dans `train/train.py:322-328` :
+Dans `train/train.py` :
 
 ```python
 def _get_backbone_class(model_name: str):
-    if name in ("efficientnet-b0", "efficientnet_b0"):
-        return tf.keras.applications.EfficientNetB0
-    elif name in ("efficientnet-b1", "efficientnet_b1"):
-        return tf.keras.applications.EfficientNetB1
-    elif name in ("efficientnet-b2", "efficientnet_b2"):
-        return tf.keras.applications.EfficientNetB2
-    elif name in ("efficientnet-b3", "efficientnet_b3"):
-        return tf.keras.applications.EfficientNetB3
-    elif name in ("mobilenet-v2-035", "mobilenet-v2-050", "mobilenet-v2-100"):
+    if name in ("mobilenet-v2-035", "mobilenet-v2-050", "mobilenet-v2-100"):
         return tf.keras.applications.MobileNetV2
 ```
 
@@ -165,7 +157,7 @@ train/results/
     └── test_confusion_matrix.npy   # matrice brute pour post-process
 ```
 
-Le modèle lui-même est sauvé à la racine du module sous `BestModelEfficientNetLite.keras`. Le nom est trompeur (rien à voir avec EfficientNet-Lite), il est conservé pour compatibilité avec les consommateurs en aval. On gardera l'alias tant qu'on ne refait pas ces intégrations.
+Le modèle lui-même est sauvé à la racine du module sous `BestModelMobileNetV2.keras`.
 
 ### Évaluer un modèle existant
 
@@ -197,7 +189,7 @@ Choix de format dans `tools/convert_model.py` : `all` (défaut), `tflite`, `tfjs
 
 ```
 exports/
-├── BestModelEfficientNetLite.keras
+├── BestModelMobileNetV2.keras
 ├── config.json              # {model_type, input_size, preprocessing, class_names, ...}
 ├── labels.json              # id2label / label2id
 ├── README.md                # model card simple
@@ -232,7 +224,7 @@ Chiffres du dernier run (MobileNetV2-0.35) :
 
 ```bash
 huggingface-cli login       # une fois, ou export HF_TOKEN=...
-python -m tools.push_to_hub                           # default repo whispr/efficientnet-food-classifier
+python -m tools.push_to_hub                           # default repo whispr/mobilenetv2-food-classifier
 python -m tools.push_to_hub --repo-id org/autre-nom
 python -m tools.push_to_hub --private
 python -m tools.push_to_hub --dry-run                 # liste les fichiers sans push
@@ -283,8 +275,8 @@ Les détails spécifiques TFJS (installation `tensorflowjs`, limites de format) 
 ## Une session complète depuis zéro
 
 ```bash
-cd src/efficientnet_lite_gpu
-source .venv-efficientnet/bin/activate
+cd src/mobilenet_v2_small
+source .venv-mobilenet-v2/bin/activate
 
 # Dataset (une seule fois)
 python -m tools.fetch_google_dataset
@@ -301,7 +293,7 @@ python -m tools.validate_exports
 python -m tools.generate_validation_report
 
 # Push (optionnel)
-python -m tools.push_to_hub --repo-id whispr/efficientnet-food-classifier
+python -m tools.push_to_hub --repo-id whispr/mobilenetv2-food-classifier
 ```
 
 Durée observée sur le serveur (ROCm 7.2.1, 2× RX 6600 XT, 9 classes, ~6 400 images) : ~25 min pour le train complet (stage 1 + stage 2), ~90 s pour les exports, ~3 min pour la validation + rapport.

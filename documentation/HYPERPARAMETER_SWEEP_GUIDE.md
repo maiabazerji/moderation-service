@@ -1,6 +1,6 @@
 # Hyperparameter Sweep Report Generator
 
-Outil de génération de rapport pour les balayages d'hyperparamètres, basé sur le pipeline d'entraînement EfficientNet en deux étapes. Exécute plusieurs configurations d'hyperparamètres et produit un rapport HTML comparatif.
+Outil de génération de rapport pour les balayages d'hyperparamètres, basé sur le pipeline d'entraînement MobileNetV2 en deux étapes. Exécute plusieurs configurations d'hyperparamètres et produit un rapport HTML comparatif.
 
 ## Prérequis
 
@@ -12,7 +12,7 @@ Outil de génération de rapport pour les balayages d'hyperparamètres, basé su
 ## Démarrage rapide
 
 ```bash
-cd src/efficientnet_lite_gpu
+cd src/mobilenet_v2_small
 
 # 1. Lancer les 8 expériences
 python -m tools.generate_training_report
@@ -36,14 +36,14 @@ Le script définit 8 configurations d'hyperparamètres :
 
 | ID | Nom | Batch Size | S1 LR | S2 LR | S1 Epochs | S2 Epochs | Modèle | Description |
 |----|------|-----------|-------|-------|-----------|-----------|-------|------|
-| A | Baseline | 8 | 1e-3 | 2e-5 | 12 | 6 | B0 | Configuration de référence |
-| B | Large Batch | 32 | 1e-3 | 2e-5 | 12 | 6 | B0 | Batch size élevé |
-| C | High LR | 8 | 1e-2 | 1e-4 | 12 | 6 | B0 | Taux d'apprentissage élevé |
-| D | Low LR + Long | 8 | 5e-4 | 1e-5 | 20 | 8 | B0 | Taux faible + entraînement long |
-| E | EfficientNet-B1 | 8 | 1e-3 | 2e-5 | 12 | 6 | B1 | Modèle plus grand |
-| F | No Fine-tune | 8 | 1e-3 | 0 | 20 | 0 | B0 | Stage 1 uniquement |
-| G | Batch 16 + Mid LR | 16 | 2e-3 | 5e-5 | 15 | 6 | B0 | Configuration intermédiaire |
-| H | Aggressive Fine-tune | 8 | 1e-3 | 1e-4 | 10 | 12 | B0 | Fine-tuning prolongé |
+| A | Baseline | 8 | 1e-3 | 2e-5 | 12 | 6 | v2-035 | Configuration de référence |
+| B | Large Batch | 32 | 1e-3 | 2e-5 | 12 | 6 | v2-035 | Batch size élevé |
+| C | High LR | 8 | 1e-2 | 1e-4 | 12 | 6 | v2-035 | Taux d'apprentissage élevé |
+| D | Low LR + Long | 8 | 5e-4 | 1e-5 | 20 | 8 | v2-035 | Taux faible + entraînement long |
+| E | MobileNetV2-050 | 8 | 1e-3 | 2e-5 | 12 | 6 | v2-050 | Backbone plus large |
+| F | No Fine-tune | 8 | 1e-3 | 0 | 20 | 0 | v2-035 | Stage 1 uniquement |
+| G | Batch 16 + Mid LR | 16 | 2e-3 | 5e-5 | 15 | 6 | v2-035 | Configuration intermédiaire |
+| H | Aggressive Fine-tune | 8 | 1e-3 | 1e-4 | 10 | 12 | v2-035 | Fine-tuning prolongé |
 
 ### Expériences personnalisées
 
@@ -62,7 +62,7 @@ Le script définit 8 configurations d'hyperparamètres :
         "fine_tune": True,
     },
     "model_overrides": {          # surcharge des champs de model_config
-        "model_name": "efficientnet-b0",
+        "model_name": "mobilenet-v2-035",
     },
 }
 ```

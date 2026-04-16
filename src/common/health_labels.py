@@ -4,7 +4,7 @@ Canonical mapping from fine-grained food classes to the 3-tier health verdict.
 Single source of truth for `{healthy, unhealthy, not_food}` rollup. Used by:
   - `app_mockup_demo/app.py` (demo UI)
   - `src/mobilenet_v3_small/validation/` (Keras model validators)
-  - `src/efficientnet_lite_gpu/validation/` (Keras model validators)
+  - `src/mobilenet_v2_small/validation/` (Keras model validators)
   - `src/vit_video/` notebook (training & evaluation)
 
 Classes follow DATASET.md §3a (legacy 16-class taxonomy).

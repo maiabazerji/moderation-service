@@ -8,7 +8,7 @@ the model can learn to say "this is not food" instead of giving a
 high-confidence food prediction for random images.
 
 Usage:
-    cd src/efficientnet_lite_gpu
+    cd src/mobilenet_v2_small
     python -m tools.download_other_class                          # defaults
     python -m tools.download_other_class --count 800              # more images
     python -m tools.download_other_class --output train/dataset_raw_cleaned/Other

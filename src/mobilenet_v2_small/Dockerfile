@@ -12,10 +12,10 @@ COPY requirements.txt /workspace/requirements.txt
 
 RUN pip install --no-cache-dir -r /workspace/requirements.txt
 
-COPY . /workspace/src/efficientnet_lite_gpu
+COPY . /workspace/src/mobilenet_v2_small
 
 ENV PYTHONPATH=/workspace/src
 
-WORKDIR /workspace/src/efficientnet_lite_gpu
+WORKDIR /workspace/src/mobilenet_v2_small
 
 CMD ["python", "main.py", "--action=train"]

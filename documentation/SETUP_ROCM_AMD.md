@@ -1,6 +1,6 @@
 # Environnement GPU AMD (ROCm) — serveur
 
-Notes pratiques pour faire tourner `src/efficientnet_lite_gpu/` sur le **serveur AMD**. Le laptop de dev utilise une carte NVIDIA et est documenté séparément dans [`SETUP_CUDA_NVIDIA.md`](./SETUP_CUDA_NVIDIA.md) ; il faut valider les changements sur les deux cibles avant une release.
+Notes pratiques pour faire tourner `src/mobilenet_v2_small/` sur le **serveur AMD**. Le laptop de dev utilise une carte NVIDIA et est documenté séparément dans [`SETUP_CUDA_NVIDIA.md`](./SETUP_CUDA_NVIDIA.md) ; il faut valider les changements sur les deux cibles avant une release.
 
 Le code applicatif (`train/`, `tools/`) est identique : ROCm se branche au niveau du package TensorFlow et du runtime `/opt/rocm`, pas du code Python.
 
@@ -66,7 +66,7 @@ L'utilisateur qui lance les runs doit être dans les groupes `render` et `video`
 ## Environnement Python
 
 ```bash
-cd src/efficientnet_lite_gpu
+cd src/mobilenet_v2_small
 python3.11 -m venv .venv-rocm
 source .venv-rocm/bin/activate
 pip install --upgrade pip
@@ -119,7 +119,7 @@ Si ça renvoie `GPUs: []` : cas le plus fréquent, c'est `HSA_OVERRIDE_GFX_VERSI
 Aucune particularité côté code :
 
 ```bash
-cd src/efficientnet_lite_gpu
+cd src/mobilenet_v2_small
 source .venv-rocm/bin/activate
 python -m train.train
 ```
@@ -174,7 +174,7 @@ Dans le conteneur : `pip install -r requirements.txt` puis `python -m train.trai
 | Windows | OK via WSL2 | non supporté |
 | Image Docker | `tensorflow/tensorflow:*-gpu` | `rocm/tensorflow:*` |
 
-Le code `src/efficientnet_lite_gpu/` ne doit pas brancher sur l'un ou l'autre ; si un bug apparaît seulement sur une cible, c'est un problème de runtime/lib, pas d'API.
+Le code `src/mobilenet_v2_small/` ne doit pas brancher sur l'un ou l'autre ; si un bug apparaît seulement sur une cible, c'est un problème de runtime/lib, pas d'API.
 
 ## Liens qu'on consulte régulièrement
 

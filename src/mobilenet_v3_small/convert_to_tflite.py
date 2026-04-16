@@ -44,7 +44,7 @@ def convert(model_path: Path, output_path: Path, quantize: bool = False):
 def main():
     parser = argparse.ArgumentParser(description="Convert Keras model to TFLite")
     parser.add_argument(
-        "--model", type=Path, default=Path("BestModelEfficientNetLite.h5"),
+        "--model", type=Path, default=Path("BestModelMobileNetV2.h5"),
         help="Path to the trained Keras model",
     )
     parser.add_argument(

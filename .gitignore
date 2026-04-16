@@ -16,7 +16,7 @@ pip-wheel-metadata/
 venv/
 ENV/
 env/
-src/efficientnet_lite_gpu/.venv-efficientnet
+src/mobilenet_v2_small/.venv-mobilenet-v2
 .env
 .env.*
 .cadence
@@ -55,7 +55,7 @@ results/
 *.log
 
 # Model final / binaries (any framework)
-src/efficientnet_lite_gpu/simple_efficientnet_food.h5
+src/mobilenet_v2_small/simple_mobilenetv2_food.h5
 *.h5
 *.keras
 *.ckpt
@@ -73,12 +73,12 @@ src/efficientnet_lite_gpu/simple_efficientnet_food.h5
 *.pickle
 
 # Dataset
-src/efficientnet_lite_gpu/train/dataset/
-src/efficientnet_lite_gpu/train/dataset_*/
-src/efficientnet_lite_gpu/train/results_sweep/
-src/efficientnet_lite_gpu/exports/
-efficientnet_food_finetuned.h5
-src/efficientnet_lite_gpu/BestModelEfficientNetLite.h5
+src/mobilenet_v2_small/train/dataset/
+src/mobilenet_v2_small/train/dataset_*/
+src/mobilenet_v2_small/train/results_sweep/
+src/mobilenet_v2_small/exports/
+mobilenetv2_food_finetuned.h5
+src/mobilenet_v2_small/BestModelMobileNetV2.h5
 
 # Datasets (any model) - never commit training images/data
 **/train/dataset/
