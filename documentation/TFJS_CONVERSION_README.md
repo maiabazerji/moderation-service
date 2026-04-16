@@ -24,7 +24,7 @@ The conversion script does **not** treat `.tflite` as a reliable standard input 
 
 If input is `.tflite`, the script fails with a clear error:
 
-`当前只有 TFLite 文件，无法作为标准 tfjs 转换输入，请提供上游训练模型或导出前模型`
+`Only a .tflite file is available; it cannot be used as a standard TFJS conversion input. Please provide the upstream training model or the pre-export SavedModel.`
 
 ## 3) Script location
 
