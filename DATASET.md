@@ -19,7 +19,7 @@ The repo has **four independent data acquisition pipelines** that feed three mod
    │ Pipeline A: scrape     │ │ Pipeline B:       │ │ Pipeline C: scrape   │
    │ Google/DuckDuckGo      │ │ scrape YouTube    │ │ DuckDuckGo (mirror   │
    │ images, 16 classes     │ │ + extract frames  │ │ of A, mobilenet dir) │
-   │ → EfficientNet         │ │ → ViT-Video       │ │ → MobileNetV3        │
+   │ → MobileNetV2          │ │ → ViT-Video       │ │ → MobileNetV3        │
    └────────────────────────┘ └───────────────────┘ └──────────────────────┘
 
                           ┌──────────────────────────────────────┐
@@ -37,7 +37,7 @@ All four pipelines normalise to the same `frames/<class>/*.jpg` layout so any mo
 
 | Repo | Purpose | Used by |
 |---|---|---|
-| [`maia2000/food-classifier-dataset`](https://huggingface.co/datasets/maia2000/food-classifier-dataset) | Primary corpus. Either 16-class (legacy) or 3-class (`healthy`/`unhealthy`/`not_food`) depending on the latest push. | EfficientNet, MobileNet, ViT-Video |
+| [`maia2000/food-classifier-dataset`](https://huggingface.co/datasets/maia2000/food-classifier-dataset) | Primary corpus. Either 16-class (legacy) or 3-class (`healthy`/`unhealthy`/`not_food`) depending on the latest push. | MobileNetV2, MobileNetV3, ViT-Video |
 | [`maia2000/food-binary-dataset`](https://huggingface.co/datasets/maia2000/food-binary-dataset) | Curated binary subset for the binary ViT release. | `vit_video_binary.ipynb` |
 
 Cell 5b of every TF Colab notebook re-uploads `/content/frames/` to `food-classifier-dataset/frames/` after training, so subsequent runs hit the HF path in Cell 2 and skip scraping entirely.
@@ -68,7 +68,7 @@ Subset of 3b without `not_food`. Trains a sigmoid binary classifier. **Has no "n
 
 ---
 
-## 4. Pipeline A -- image scraping (EfficientNet)
+## 4. Pipeline A -- image scraping (MobileNetV2)
 
 **Code:** `src/mobilenet_v2_small/tools/fetch_google_dataset.py`
 **Config:** `src/mobilenet_v2_small/tools/dataset_download_config.yaml` (16 classes, 20–40 search keywords each, target 600 images/class)

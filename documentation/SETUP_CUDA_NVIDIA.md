@@ -9,7 +9,7 @@ Notes pratiques pour faire tourner `src/mobilenet_v2_small/` sur le **laptop NVI
 - **CUDA / cuDNN** : CUDA Toolkit 12.3, cuDNN 8.9 (branches CUDA 12.x).
 - **Python / TF** : Python 3.11, TensorFlow 2.15+.
 
-Les 8 GB de VRAM sont la contrainte principale. Les backbones actuels passent tous sans OOM ; c'est EfficientNet-B3 à 300×300 qui commence à poser problème.
+Les 8 GB de VRAM sont la contrainte principale. Les backbones actuels passent tous sans OOM ; les variantes MobileNetV2 supportées (0.35/0.50/1.0) passent toutes largement.
 
 ## Compatibilité TF / CUDA — ce qui a été testé
 
@@ -70,8 +70,8 @@ Vérifier la version : `grep -A 2 CUDNN_MAJOR /usr/local/cuda-12.3/include/cudnn
 
 ```bash
 cd src/mobilenet_v2_small
-python3.11 -m venv .venv-efficientnet
-source .venv-efficientnet/bin/activate
+python3.11 -m venv .venv-mobilenet-v2
+source .venv-mobilenet-v2/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -115,7 +115,7 @@ with tf.device('/GPU:0'):
 
 ```bash
 cd src/mobilenet_v2_small
-source .venv-efficientnet/bin/activate
+source .venv-mobilenet-v2/bin/activate
 python -m tools.hardware_test      # optionnel, sanity check
 python -m train.train
 ```
@@ -130,8 +130,8 @@ Sur le RTX 3070 Laptop (8 GB) avec le pipeline actuel :
 |---|---|
 | MobileNetV2-0.35, 224×224 | 64 large |
 | MobileNetV2-1.00, 224×224 | 32 |
-| EfficientNet-B0, 224×224 (défaut) | 32 |
-| EfficientNet-B3, 300×300 | 8–16, au-delà ça OOM |
+| MobileNetV2-0.35, 224×224 (défaut) | 64 large |
+| MobileNetV2-1.00, 224×224 | 32 |
 
 Pour éviter que TF réserve les 8 GB au démarrage :
 

@@ -55,7 +55,7 @@ results/
 *.log
 
 # Model final / binaries (any framework)
-src/mobilenet_v2_small/simple_efficientnet_food.h5
+src/mobilenet_v2_small/simple_mobilenetv2_food.h5
 *.h5
 *.keras
 *.ckpt
@@ -77,8 +77,8 @@ src/mobilenet_v2_small/train/dataset/
 src/mobilenet_v2_small/train/dataset_*/
 src/mobilenet_v2_small/train/results_sweep/
 src/mobilenet_v2_small/exports/
-efficientnet_food_finetuned.h5
-src/mobilenet_v2_small/BestModelEfficientNetLite.h5
+mobilenetv2_food_finetuned.h5
+src/mobilenet_v2_small/BestModelMobileNetV2.h5
 
 # Datasets (any model) - never commit training images/data
 **/train/dataset/

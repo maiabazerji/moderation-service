@@ -4,7 +4,7 @@ This repository contains three complementary food-moderation models, each with i
 
 | Model | Framework | Role |
 |---|---|---|
-| [EfficientNet-Lite](src/mobilenet_v2_small/) | TensorFlow / Keras | Higher-accuracy image classifier (mobile-friendly) |
+| [MobileNetV2-0.35](src/mobilenet_v2_small/) | TensorFlow / Keras | Edge-first image classifier (sub-1 MB TFLite) |
 | [MobileNetV3-Small](src/mobilenet_v3_small/) | TensorFlow / Keras | Lightweight image classifier (sub-10 ms on mobile) |
 | [ViT-Video](src/vit_video/) | PyTorch | Video / multi-frame classifier (ViT-B/16 or MobileViT-XXS + BiLSTM) |
 
