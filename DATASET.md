@@ -70,9 +70,9 @@ Subset of 3b without `not_food`. Trains a sigmoid binary classifier. **Has no "n
 
 ## 4. Pipeline A -- image scraping (EfficientNet)
 
-**Code:** `src/efficientnet_lite_gpu/tools/fetch_google_dataset.py`
-**Config:** `src/efficientnet_lite_gpu/tools/dataset_download_config.yaml` (16 classes, 20–40 search keywords each, target 600 images/class)
-**Output:** `src/efficientnet_lite_gpu/train/dataset/Train/<class>/`
+**Code:** `src/mobilenet_v2_small/tools/fetch_google_dataset.py`
+**Config:** `src/mobilenet_v2_small/tools/dataset_download_config.yaml` (16 classes, 20–40 search keywords each, target 600 images/class)
+**Output:** `src/mobilenet_v2_small/train/dataset/Train/<class>/`
 
 | | |
 |---|---|
@@ -87,8 +87,8 @@ Subset of 3b without `not_food`. Trains a sigmoid binary classifier. **Has no "n
 Browser-style headers reduce 403 errors from DuckDuckGo. To run:
 
 ```bash
-src/efficientnet_lite_gpu/run_fetch_google_dataset.bat            # full
-src/efficientnet_lite_gpu/run_fetch_google_dataset_dry_run.bat    # dry run
+src/mobilenet_v2_small/run_fetch_google_dataset.bat            # full
+src/mobilenet_v2_small/run_fetch_google_dataset_dry_run.bat    # dry run
 ```
 
 ---
@@ -212,7 +212,7 @@ For Pipeline B (videos), the train/val/test split is taken at the **video** leve
 ### Image scraping (Pipelines A / C)
 
 ```bash
-cd src/efficientnet_lite_gpu
+cd src/mobilenet_v2_small
 pip install -r requirements-fetch-only.txt
 python tools/fetch_google_dataset.py --config tools/dataset_download_config.yaml
 ```

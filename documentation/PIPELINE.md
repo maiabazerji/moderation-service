@@ -1,6 +1,6 @@
 # Pipeline de bout en bout
 
-Note pratique pour traverser l'ensemble du module `src/efficientnet_lite_gpu/` : depuis les images brutes jusqu'au modèle déployable. Le document suit la façon dont ça se passe réellement aujourd'hui, avec les vraies commandes et les vrais chemins.
+Note pratique pour traverser l'ensemble du module `src/mobilenet_v2_small/` : depuis les images brutes jusqu'au modèle déployable. Le document suit la façon dont ça se passe réellement aujourd'hui, avec les vraies commandes et les vrais chemins.
 
 Les docs connexes :
 
@@ -12,10 +12,10 @@ Les docs connexes :
 
 ## Avant de commencer
 
-Toutes les commandes ci-dessous s'exécutent depuis `src/efficientnet_lite_gpu/`.
+Toutes les commandes ci-dessous s'exécutent depuis `src/mobilenet_v2_small/`.
 
 ```bash
-cd src/efficientnet_lite_gpu
+cd src/mobilenet_v2_small
 python3.11 -m venv .venv-efficientnet
 source .venv-efficientnet/bin/activate
 pip install -r requirements.txt
@@ -47,7 +47,7 @@ ACTIONS = {
 
 ## config.yaml, la source de vérité
 
-Tout le pipeline lit `src/efficientnet_lite_gpu/config.yaml`. Les clés qui comptent vraiment pour un run typique :
+Tout le pipeline lit `src/mobilenet_v2_small/config.yaml`. Les clés qui comptent vraiment pour un run typique :
 
 ```yaml
 train_config:
@@ -283,7 +283,7 @@ Les détails spécifiques TFJS (installation `tensorflowjs`, limites de format) 
 ## Une session complète depuis zéro
 
 ```bash
-cd src/efficientnet_lite_gpu
+cd src/mobilenet_v2_small
 source .venv-efficientnet/bin/activate
 
 # Dataset (une seule fois)

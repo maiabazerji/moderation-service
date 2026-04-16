@@ -24,7 +24,7 @@ New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name
 4. Revenir dans le répertoire du projet et réinstaller les dépendances :
 
 ```powershell
-cd C:\Users\pc\Desktop\moderation-service\src\efficientnet_lite_gpu
+cd C:\Users\pc\Desktop\moderation-service\src\mobilenet_v2_small
 pip install -r requirements.txt
 ```
 

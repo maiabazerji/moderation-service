@@ -2,19 +2,19 @@
 
 ## Scope
 
-These conventions define responsibilities for the current active module `src/efficientnet_lite_gpu` without changing business behavior.
+These conventions define responsibilities for the current active module `src/mobilenet_v2_small` without changing business behavior.
 
 ## Directory Responsibilities
 
-- `src/efficientnet_lite_gpu/main.py`
+- `src/mobilenet_v2_small/main.py`
   - Single orchestration entrypoint for action dispatch (`train`, `eval`, `test`).
-- `src/efficientnet_lite_gpu/train/`
+- `src/mobilenet_v2_small/train/`
   - Training pipeline implementations and training-focused helpers.
-- `src/efficientnet_lite_gpu/validation/`
+- `src/mobilenet_v2_small/validation/`
   - Evaluation/validation stage logic.
-- `src/efficientnet_lite_gpu/test/`
+- `src/mobilenet_v2_small/test/`
   - Test action implementation invoked by `main.py`.
-- `src/efficientnet_lite_gpu/tools/`
+- `src/mobilenet_v2_small/tools/`
   - Utility scripts (dataset fetch, config generation, environment validation).
 - `documentation/`
   - Design docs, operational notes, migration/deprecation records.

@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 # Add src/ to sys.path so `common.fetch_google_dataset` is importable.
-_MODEL_ROOT = Path(__file__).resolve().parent.parent  # src/efficientnet_lite_gpu
+_MODEL_ROOT = Path(__file__).resolve().parent.parent  # src/mobilenet_v2_small
 sys.path.insert(0, str(_MODEL_ROOT.parent))  # src/
 
 from common.fetch_google_dataset import run  # noqa: E402
@@ -20,7 +20,7 @@ from common.fetch_google_dataset import run  # noqa: E402
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Fetch web-search images into Train/<class>/ folders (efficientnet_lite_gpu)"
+        description="Fetch web-search images into Train/<class>/ folders (mobilenet_v2_small)"
     )
     parser.add_argument(
         "--config",

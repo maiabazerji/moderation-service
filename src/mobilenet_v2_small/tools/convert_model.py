@@ -10,7 +10,7 @@ The inference model strips data-augmentation layers so that
 random augmentations are NOT applied at prediction time.
 
 Usage:
-    cd src/efficientnet_lite_gpu
+    cd src/mobilenet_v2_small
     python -m tools.convert_model                          # convert all formats
     python -m tools.convert_model --format tflite          # TFLite only
     python -m tools.convert_model --format tfjs            # TFJS only

@@ -7,7 +7,7 @@ with different hyperparameter configurations, then generates a
 self-contained HTML report from the real results.
 
 Usage:
-    cd src/efficientnet_lite_gpu
+    cd src/mobilenet_v2_small
     python -m tools.generate_training_report          # run all experiments
     python -m tools.generate_training_report --report  # report only (skip training)
 """
@@ -827,7 +827,7 @@ def main():
             os.chdir(alt)
             print(f"Changed working directory to: {alt}")
         else:
-            print("ERROR: Run this script from src/efficientnet_lite_gpu/")
+            print("ERROR: Run this script from src/mobilenet_v2_small/")
             sys.exit(1)
 
     if not args.report:

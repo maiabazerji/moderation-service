@@ -1,8 +1,8 @@
 # Préparation du dataset
 
-Notes pratiques pour préparer le dataset consommé par `src/efficientnet_lite_gpu/train/train.py`. Le document décrit ce que font réellement les scripts sous `tools/`, avec leurs arguments tels qu'ils sont dans le code, pas une réécriture idéalisée.
+Notes pratiques pour préparer le dataset consommé par `src/mobilenet_v2_small/train/train.py`. Le document décrit ce que font réellement les scripts sous `tools/`, avec leurs arguments tels qu'ils sont dans le code, pas une réécriture idéalisée.
 
-Toutes les commandes se lancent depuis `src/efficientnet_lite_gpu/`.
+Toutes les commandes se lancent depuis `src/mobilenet_v2_small/`.
 
 ## Où va quoi
 
@@ -232,7 +232,7 @@ Pour un run d'entraînement normal avec `rebuild_clean_split_before_train: true`
 ## 5. Recette minimale
 
 ```bash
-cd src/efficientnet_lite_gpu
+cd src/mobilenet_v2_small
 
 # scrape
 python -m tools.fetch_google_dataset

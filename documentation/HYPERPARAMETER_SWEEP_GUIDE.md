@@ -12,7 +12,7 @@ Outil de génération de rapport pour les balayages d'hyperparamètres, basé su
 ## Démarrage rapide
 
 ```bash
-cd src/efficientnet_lite_gpu
+cd src/mobilenet_v2_small
 
 # 1. Lancer les 8 expériences
 python -m tools.generate_training_report

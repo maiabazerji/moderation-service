@@ -4,8 +4,8 @@ Centralised list of the docs under `documentation/`. Grouped by what you're tryi
 
 ## Active module
 
-- Main module: `src/efficientnet_lite_gpu`
-- CLI entry point: `src/efficientnet_lite_gpu/main.py` (`--action train | eval | validation | test`)
+- Main module: `src/mobilenet_v2_small`
+- CLI entry point: `src/mobilenet_v2_small/main.py` (`--action train | eval | validation | test`)
 - Direct train entry point: `python -m train.train` (reads `config.yaml`)
 
 ## Starting a run
@@ -33,5 +33,5 @@ Centralised list of the docs under `documentation/`. Grouped by what you're tryi
 
 ## Dependencies
 
-- Runtime: `src/efficientnet_lite_gpu/requirements.txt`
-- Fetch-only (no TF): `src/efficientnet_lite_gpu/requirements-fetch-only.txt`
+- Runtime: `src/mobilenet_v2_small/requirements.txt`
+- Fetch-only (no TF): `src/mobilenet_v2_small/requirements-fetch-only.txt`

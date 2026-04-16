@@ -130,7 +130,7 @@ Pour mémoire, le code supporte déjà `label_smoothing > 0` (bascule en `Catego
 
 ## Fichiers livrés
 
-Tout est sous `src/efficientnet_lite_gpu/exports/` :
+Tout est sous `src/mobilenet_v2_small/exports/` :
 
 - `BestModelEfficientNetLite.keras` — source Keras (nom legacy).
 - `tflite/model.tflite`, `tflite/model_fp16.tflite`.

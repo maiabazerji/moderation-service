@@ -618,7 +618,7 @@ def main():
                      "EfficientNetB0", "efficientnet", "efficientnetb0")
     mob = make_cells("MobileNetV3Small", "mobilenet", "maia2000/mobilenet-food-binary",
                      "MobileNetV3Small", "mobilenet_v3", "mobilenetv3small")
-    (REPO / "src/efficientnet_lite_gpu/efficientnet_colab.ipynb").write_text(json.dumps(eff, indent=1), encoding="utf-8")
+    (REPO / "src/mobilenet_v2_small/efficientnet_colab.ipynb").write_text(json.dumps(eff, indent=1), encoding="utf-8")
     (REPO / "src/mobilenet_v3_small/mobilenet_colab.ipynb").write_text(json.dumps(mob, indent=1), encoding="utf-8")
     print("wrote both notebooks")
 

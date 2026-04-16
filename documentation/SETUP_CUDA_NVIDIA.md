@@ -1,6 +1,6 @@
 # Environnement GPU NVIDIA (CUDA) — laptop de dev
 
-Notes pratiques pour faire tourner `src/efficientnet_lite_gpu/` sur le **laptop NVIDIA**. Le serveur d'entraînement utilise une carte AMD, documentation à part : [`SETUP_ROCM_AMD.md`](./SETUP_ROCM_AMD.md). Valider les changements de pipeline sur les deux cibles avant release.
+Notes pratiques pour faire tourner `src/mobilenet_v2_small/` sur le **laptop NVIDIA**. Le serveur d'entraînement utilise une carte AMD, documentation à part : [`SETUP_ROCM_AMD.md`](./SETUP_ROCM_AMD.md). Valider les changements de pipeline sur les deux cibles avant release.
 
 ## Le laptop en place
 
@@ -69,7 +69,7 @@ Vérifier la version : `grep -A 2 CUDNN_MAJOR /usr/local/cuda-12.3/include/cudnn
 **Env Python** :
 
 ```bash
-cd src/efficientnet_lite_gpu
+cd src/mobilenet_v2_small
 python3.11 -m venv .venv-efficientnet
 source .venv-efficientnet/bin/activate
 pip install -r requirements.txt
@@ -114,7 +114,7 @@ with tf.device('/GPU:0'):
 ## Lancer un entraînement
 
 ```bash
-cd src/efficientnet_lite_gpu
+cd src/mobilenet_v2_small
 source .venv-efficientnet/bin/activate
 python -m tools.hardware_test      # optionnel, sanity check
 python -m train.train

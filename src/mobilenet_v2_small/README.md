@@ -7,7 +7,7 @@ This directory contains the active training/validation/test pipeline used by thi
 Run all commands from this folder:
 
 ```bash
-cd src/efficientnet_lite_gpu
+cd src/mobilenet_v2_small
 ```
 
 ## Dependencies

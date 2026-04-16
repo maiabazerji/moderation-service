@@ -15,7 +15,7 @@ Generates a self-contained HTML report comparing:
   - Inference speed
 
 Usage:
-    cd src/efficientnet_lite_gpu
+    cd src/mobilenet_v2_small
     python -m tools.validate_exports
 """
 

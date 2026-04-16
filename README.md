@@ -4,7 +4,7 @@ This repository contains three complementary food-moderation models, each with i
 
 | Model | Framework | Role |
 |---|---|---|
-| [EfficientNet-Lite](src/efficientnet_lite_gpu/) | TensorFlow / Keras | Higher-accuracy image classifier (mobile-friendly) |
+| [EfficientNet-Lite](src/mobilenet_v2_small/) | TensorFlow / Keras | Higher-accuracy image classifier (mobile-friendly) |
 | [MobileNetV3-Small](src/mobilenet_v3_small/) | TensorFlow / Keras | Lightweight image classifier (sub-10 ms on mobile) |
 | [ViT-Video](src/vit_video/) | PyTorch | Video / multi-frame classifier (ViT-B/16 or MobileViT-XXS + BiLSTM) |
 
@@ -22,7 +22,7 @@ cd moderation-service
 2. Switch to the active module directory:
 
 ```bash
-cd src/efficientnet_lite_gpu
+cd src/mobilenet_v2_small
 ```
 
 3. Install dependencies:
@@ -112,9 +112,9 @@ Windows helpers:
 - Project index: [`documentation/PROJECT_INDEX.md`](documentation/PROJECT_INDEX.md)
 - Dataset pipelines: [`DATASET.md`](DATASET.md)
 - Model specs:
-  - [`src/efficientnet_lite_gpu/TECHNICAL.md`](src/efficientnet_lite_gpu/TECHNICAL.md)
+  - [`src/mobilenet_v2_small/TECHNICAL.md`](src/mobilenet_v2_small/TECHNICAL.md)
   - [`src/mobilenet_v3_small/TECHNICAL.md`](src/mobilenet_v3_small/TECHNICAL.md)
   - [`src/vit_video/TECHNICAL.md`](src/vit_video/TECHNICAL.md)
-- Module READMEs: [`src/efficientnet_lite_gpu/README.md`](src/efficientnet_lite_gpu/README.md), [`src/vit_video/README.md`](src/vit_video/README.md)
+- Module READMEs: [`src/mobilenet_v2_small/README.md`](src/mobilenet_v2_small/README.md), [`src/vit_video/README.md`](src/vit_video/README.md)
 - Windows long path setup: [`documentation/WINDOWS_LONG_PATHS.md`](documentation/WINDOWS_LONG_PATHS.md)
 - Architecture reference: [`documentation/1_architecture/1_system_design.md`](documentation/1_architecture/1_system_design.md)

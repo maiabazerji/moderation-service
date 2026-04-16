@@ -173,8 +173,8 @@ def load_efficientnet_model():
     search = [
         MODELS_DIR,
         REPO_ROOT / "models",
-        REPO_ROOT / "src" / "efficientnet_lite_gpu",
-        REPO_ROOT / "src" / "efficientnet_lite_gpu" / "tflite",
+        REPO_ROOT / "src" / "mobilenet_v2_small",
+        REPO_ROOT / "src" / "mobilenet_v2_small" / "tflite",
     ]
     candidates = [
         "efficientnet_food.tflite",

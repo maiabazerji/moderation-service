@@ -19,7 +19,7 @@ Place the trained/exported models in `app_mockup_demo/models/`:
 
 | File | Source | Size |
 |---|---|---|
-| `efficientnet_food.tflite` | `src/efficientnet_lite_gpu/BestModelEfficientNetLite_inference.tflite` | ~4 MB |
+| `efficientnet_food.tflite` | `src/mobilenet_v2_small/BestModelEfficientNetLite_inference.tflite` | ~4 MB |
 | `vit_food.pt` | `src/vit_video/exported_models/model.pt` (TorchScript) | ~5 MB |
 
 Rename them to match the paths above.

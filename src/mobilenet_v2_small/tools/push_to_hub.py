@@ -7,7 +7,7 @@ Prerequisites:
     pip install huggingface-hub
 
 Usage:
-    cd src/efficientnet_lite_gpu
+    cd src/mobilenet_v2_small
     python -m tools.push_to_hub
     python -m tools.push_to_hub --repo-id your-org/your-model
     python -m tools.push_to_hub --private   # private repo
