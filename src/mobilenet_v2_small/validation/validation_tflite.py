@@ -121,7 +121,7 @@ def run(cfg: dict):
     model_name = comp_cfg["model_name"]
     tflite_path = Path.cwd() / (Path(model_name).stem + "_inference.tflite")
     if not tflite_path.exists():
-        tflite_path = Path.cwd() / "BestModelEfficientNetLite_inference.tflite"
+        tflite_path = Path.cwd() / "BestModelMobileNetV2_inference.tflite"
 
     if not tflite_path.exists():
         print(f"TFLite model not found. Run convert_to_tflite.py first.")

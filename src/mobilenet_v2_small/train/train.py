@@ -314,15 +314,7 @@ def _build_data_augmentation(train_cfg: dict) -> tf.keras.Sequential:
 
 def _get_backbone_class(model_name: str):
     name = model_name.lower()
-    if name in ("efficientnet-b0", "efficientnet_b0"):
-        return tf.keras.applications.EfficientNetB0
-    elif name in ("efficientnet-b1", "efficientnet_b1"):
-        return tf.keras.applications.EfficientNetB1
-    elif name in ("efficientnet-b2", "efficientnet_b2"):
-        return tf.keras.applications.EfficientNetB2
-    elif name in ("efficientnet-b3", "efficientnet_b3"):
-        return tf.keras.applications.EfficientNetB3
-    elif name in ("mobilenet-v2-035", "mobilenet-v2-050", "mobilenet-v2-100"):
+    if name in ("mobilenet-v2-035", "mobilenet-v2-050", "mobilenet-v2-100"):
         return tf.keras.applications.MobileNetV2
     else:
         raise ValueError(f"Unsupported model_name: {model_name}")
@@ -330,9 +322,7 @@ def _get_backbone_class(model_name: str):
 
 def _get_preprocess_input(model_name: str):
     name = model_name.lower()
-    if name.startswith("efficientnet"):
-        return tf.keras.applications.efficientnet.preprocess_input
-    elif name.startswith("mobilenet-v2"):
+    if name.startswith("mobilenet-v2"):
         return tf.keras.applications.mobilenet_v2.preprocess_input
     else:
         raise ValueError(f"Unsupported model_name for preprocess: {model_name}")

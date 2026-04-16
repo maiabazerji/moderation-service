@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Model format converter for EfficientNet food classifier.
+Model format converter for MobileNetV2 food classifier.
 
 Converts the trained Keras model to deployment formats:
   - TFLite  (mobile / edge)
@@ -33,7 +33,7 @@ import numpy as np
 
 # ── Defaults ─────────────────────────────────────────────────────────────────
 
-DEFAULT_MODEL = "BestModelEfficientNetLite.keras"
+DEFAULT_MODEL = "BestModelMobileNetV2.keras"
 OUTPUT_DIR = "exports"
 
 
@@ -48,13 +48,10 @@ def build_inference_model(model_path: str) -> tf.keras.Model:
 
     # The model uses a Lambda layer wrapping preprocess_input —
     # we must register it so Keras can deserialize it.
-    # Support both EfficientNet and MobileNetV2 preprocessing.
-    efficientnet_preprocess_fn = tf.keras.applications.efficientnet.preprocess_input
     mobilenet_v2_preprocess_fn = tf.keras.applications.mobilenet_v2.preprocess_input
 
     custom_objects = {
         "preprocess_input": mobilenet_v2_preprocess_fn,
-        "efficientnet_preprocess": efficientnet_preprocess_fn,
         "backbone_preprocess": mobilenet_v2_preprocess_fn,
     }
 
@@ -313,8 +310,6 @@ def write_labels_and_config(output_dir: Path, model_path: str):
             mc = cfg.get("model_config", {})
             if mc.get("model_name"):
                 model_type = mc["model_name"]
-                if model_type.startswith("efficientnet"):
-                    preprocessing_note = "Use tf.keras.applications.efficientnet.preprocess_input()"
             break
 
     # Write model config.
@@ -328,7 +323,7 @@ def write_labels_and_config(output_dir: Path, model_path: str):
         "class_names": class_names,
         "preprocessing": {
             "resize": [224, 224],
-            "normalization": "mobilenet_v2" if model_type.startswith("mobilenet") else "efficientnet",
+            "normalization": "mobilenet_v2",
             "note": preprocessing_note,
         },
         "source_model": str(model_path),
@@ -344,7 +339,7 @@ def write_labels_and_config(output_dir: Path, model_path: str):
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Convert EfficientNet model to deployment formats")
+    parser = argparse.ArgumentParser(description="Convert MobileNetV2 model to deployment formats")
     parser.add_argument("--input", type=str, default=None,
                         help=f"Path to .keras or .h5 model (default: {DEFAULT_MODEL})")
     parser.add_argument("--output", type=str, default=OUTPUT_DIR,

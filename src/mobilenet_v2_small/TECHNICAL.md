@@ -1,103 +1,92 @@
-# EfficientNet-B0 Food Classifier -- Technical Documentation
+# MobileNetV2 Food Classifier -- Technical Documentation
 
 ## Overview
 
-Image classification model for food content moderation. Classifies a single image as **healthy**, **unhealthy**, or **not_food** (3-class softmax) using an EfficientNet-B0 backbone with frozen-backbone transfer learning.
+Image classification model for food content moderation. Uses a **MobileNetV2-0.35** backbone (ImageNet-pretrained) with frozen-backbone transfer learning followed by a fine-tuning stage.
 
 | | |
 |---|---|
 | **Framework** | TensorFlow / Keras |
-| **Backbone** | EfficientNetB0 (ImageNet-pretrained, frozen) |
-| **Head** | GlobalAveragePooling2D → Dropout(0.2) → Dense(N, softmax) |
+| **Backbone** | MobileNetV2 alpha=0.35 (ImageNet-pretrained) |
+| **Head** | GlobalAveragePooling2D → BatchNorm → Dropout(0.3) → Dense(N, softmax, L2=1e-4) |
 | **Input** | RGB image, 224×224 |
-| **Output** | Softmax over `{healthy, unhealthy, not_food}` (or sigmoid scalar if only 2 classes are present) |
-| **Mobile format** | TFLite float + int8-quantized |
-| **HF model repo** | [`maia2000/efficientnet-food-binary`](https://huggingface.co/maia2000/efficientnet-food-binary) |
+| **Output** | Softmax over the food classes detected at training time (9 typical: 8 food + `Other`) |
+| **Mobile format** | TFLite float / fp16 / int8 + TFJS |
+| **HF model repo** | [`maia2000/mobilenetv2-food`](https://huggingface.co/maia2000/mobilenetv2-food) |
 | **HF dataset repo** | [`maia2000/food-classifier-dataset`](https://huggingface.co/datasets/maia2000/food-classifier-dataset) |
 
 ---
 
-## 1. Why EfficientNet-B0
+## 1. Why MobileNetV2-0.35
 
-- ~4 M parameters — smallest EfficientNet variant, mobile-friendly
-- 77.1 % ImageNet top-1 with ~7× fewer params than ResNet-50
-- Native TFLite conversion (float and int8 quantized)
-- Strong ImageNet features transfer cleanly to food imagery
+- ~410 k backbone parameters — fits under 1 MB as a TFLite fp16/int8 export
+- Native TFLite + TFJS conversion, usable on mobile and in browser
+- ImageNet features transfer cleanly to food imagery
+- Explicit `Other` (non-food) class acts as a reject bin, which stops the model from giving high-confidence food predictions on random inputs
 
-Compared to the ViT model in this repo: pure CNN, single-image (no temporal modeling), simpler and faster.
+Compared to the ViT model in this repo: pure CNN, single-image, much smaller, much faster inference.
 
 ---
 
 ## 2. Classes
 
-The number of classes is **detected at training time** from the folder layout under `/content/binary/`:
+The number of classes is detected at training time from folder layout in the dataset directory. A typical setup after cleanup has 9 classes: 8 food labels plus `Other` (downloaded from Caltech-101 via `tools/download_other_class.py`).
 
-- **2 classes** (`healthy`, `unhealthy`) → sigmoid head + `binary_crossentropy`
-- **3 classes** (`healthy`, `unhealthy`, `not_food`) → softmax head + `sparse_categorical_crossentropy`
-
-The 3-class variant is produced when the Food-101 + Imagenette fallback runs (see [DATASET.md](../../DATASET.md)).
+Class merging is applied by the split tooling — e.g. `Donuts → Donut` via `CLASS_MERGE_MAP` in `tools/split_dataset.py`.
 
 ---
 
 ## 3. Training pipeline
 
-The Colab notebook `efficientnet_colab.ipynb` is generated from `scripts/build_colab_notebooks.py` and is the canonical training pipeline. It is **disconnect-resilient**: every cell is self-contained, checkpoints are mirrored to Google Drive, and `model.fit(initial_epoch=N)` resumes from the last completed epoch.
+The two entry points:
 
-### Cells
+- **Local / server**: `python main.py --action train` (two-stage pipeline defined in `train/train.py`).
+- **Colab**: `mobilenet_v2_colab.ipynb` — generated from `scripts/build_colab_notebooks.py`, disconnect-resilient with Drive checkpoints.
 
-1. **Setup** — install `huggingface_hub` + `hf_transfer`, login, mount Drive at `/content/drive/MyDrive/whispr-checkpoints/efficientnet/`.
-2. **Download** — try HF dataset; on <1000 frames fall back to Food-101 + Imagenette and write into `/content/frames/{healthy,unhealthy,not_food}/`.
-3. **Organize** — symlink into `/content/binary/{class}/` (drops empty class dirs).
-4. **Train** — see hyperparameters below.
-5. **Push** — upload `model.h5`, `README.md`, `metrics.json` to the HF model repo; upload `frames/` to the HF dataset repo (with `traceback.print_exc()` on failure).
-6. **Mobile export** — convert to `model.tflite` and `model_quantized.tflite`, generate `confusion_matrix.png`, upload all three to the model repo.
+### Stages
 
-### Hyperparameters
+1. **Stage 1** — backbone frozen, head only. Stabilises the head on the dataset.
+2. **Stage 2** — fine-tune (backbone unfrozen, low LR). Optional, controlled by `train_config.fine_tune`.
+
+### Hyperparameters (defaults in `config.yaml`)
 
 | Parameter | Value |
 |---|---|
 | Image size | 224 × 224 |
 | Batch size | 32 |
-| Optimizer | Adam, lr=1e-3 |
-| Loss | `binary_crossentropy` (2 cls) / `sparse_categorical_crossentropy` (3 cls) |
-| Epochs | 10 (with `EarlyStopping(patience=3, restore_best_weights=True)`) |
-| Augmentation | RandomFlip(horizontal) + RandomRotation(0.05) + RandomZoom(0.1) |
-| Preprocessing | `efficientnet.preprocess_input` (ImageNet mean/std) |
-| Validation split | 20 %, fixed `seed=42` |
+| Optimizer | Adam |
+| Stage 1 LR | 1e-3 |
+| Stage 2 LR | 1e-5 |
+| Loss | `sparse_categorical_crossentropy` |
+| Epochs | 30 stage 1 + 30 stage 2 (budget), early-stops on `val_loss` patience 3 |
+| Augmentation | RandomFlip(h) + RandomRotation(0.15) + RandomZoom(0.2) + RandomContrast(0.2) + RandomBrightness(0.2) + RandomTranslation(0.1) |
+| Preprocessing | `mobilenet_v2.preprocess_input` (maps pixels to [-1, 1]) |
+| Split | 70 / 15 / 15 (Train / Val / Test), fixed `seed=42`, SHA-256 leak check in `tools/split_dataset.py` |
 
-### Resume logic
+### Dataset preparation
 
-Per-epoch persistence callback writes `model.h5` + `train_state.json` (`{last_epoch, history}`) locally and to Drive. On rerun the train cell:
-
-1. Pulls the checkpoint back from Drive if local is missing.
-2. Reads `last_epoch` from `train_state.json`.
-3. If `last_epoch >= TOTAL_EPOCHS` → skip training, just load the model.
-4. Otherwise resume from `initial_epoch=last_epoch`, history is concatenated.
+`rebuild_clean_split_before_train: true` in `config.yaml` triggers `tools/split_dataset.build_clean_split` before training. Input: `raw_dataset_dir` (class-folder layout). Output: `dataset_dir` with `Train/Val/Test/<class>/*`. Cross-class duplicates (same SHA-256 in multiple classes) are rejected upstream by `tools/clean_cross_class_duplicates.py`.
 
 ---
 
 ## 4. Mobile export
 
-Cell 6 produces:
+`tools/convert_model.py` produces, under `exports/`:
 
-- `model.tflite` — float TFLite (~16 MB)
-- `model_quantized.tflite` — int8-quantized TFLite (~4 MB), via `Optimize.DEFAULT`
-- `confusion_matrix.png` — 5×4 figure on the validation split; the same cell prints `raw sigmoid probs`, `label counts`, `pred counts`, `accuracy`, and a full sklearn `classification_report` so you can spot a collapsed model immediately.
+- `model.keras` — full Keras model (inference-only, augmentation layers stripped)
+- `tflite/model.tflite` — float TFLite
+- `tflite/model_fp16.tflite` — fp16 TFLite (recommended for deployment)
+- `tflite/model_int8.tflite` — int8-quantized TFLite (smallest)
+- `tfjs/` — TFJS graph model (for browser)
+- `config.json`, `labels.json` — metadata consumed by the demo app
 
-All three are uploaded to the HF model repo with 3-attempt retry.
+`tools/validate_exports.py` then runs all three TFLite formats plus Keras against the test split and writes `validation_metrics.json` + HTML/PDF reports.
 
 ---
 
 ## 5. App integration (`app_mockup_demo/app.py`)
 
-`predict_efficientnet` loads `model.tflite` from `app_mockup_demo/models/` (downloaded via the HF panel in the sidebar). The function tolerates two output shapes:
-
-- **Single sigmoid scalar** (binary classifier) → expanded to `[1-p, p]` and labelled `["healthy", "unhealthy"]` (alphabetical, matching `image_dataset_from_directory`).
-- **Softmax vector** of length N → standard `argmax`.
-
-Class names are taken from a sibling `labels.json` if present, otherwise inferred from the output dimension via `_classes_for_n` (n=1 and n=2 both → binary; n=16 → legacy 16-class).
-
-> ⚠️ A 2-class model has **no `not_food` head**. If you need the app to reject empty rooms / faces, train the 3-class variant by enabling the Food-101 + Imagenette fallback.
+`predict_mobilenetv2` loads `model.tflite` from `app_mockup_demo/models/` (downloadable via the HF panel in the sidebar). Standard softmax argmax over the class list shipped in `labels.json`.
 
 ---
 
@@ -105,11 +94,17 @@ Class names are taken from a sibling `labels.json` if present, otherwise inferre
 
 | Path | Purpose |
 |---|---|
-| `efficientnet_colab.ipynb` | Generated training notebook (do not hand-edit; regenerate via `scripts/build_colab_notebooks.py`) |
-| `train/train.py` | Standalone (non-Colab) training entry point |
-| `convert_to_tflite.py` | Standalone TFLite converter (used outside the notebook) |
-| `config.yaml` | Hyperparameter overrides for the standalone trainer |
+| `mobilenet_v2_colab.ipynb` | Generated Colab training notebook (do not hand-edit; regenerate via `scripts/build_colab_notebooks.py`) |
+| `main.py` | Action dispatcher (`train / eval / validation / eval_tflite / test`) |
+| `train/train.py` | Two-stage training implementation |
+| `convert_to_tflite.py` | Standalone TFLite converter |
+| `tools/convert_model.py` | All-in-one export pipeline (Keras + TFLite + TFJS + config.json) |
+| `tools/validate_exports.py` | Cross-format accuracy + throughput validation |
+| `tools/download_other_class.py` | Downloads Caltech-101 non-food images for the `Other` class |
+| `tools/split_dataset.py` | Hash-based stratified split with leak detection |
+| `tools/clean_cross_class_duplicates.py` | Pre-split dedup across classes |
+| `config.yaml` | Hyperparameter + dataset paths |
 | `requirements.txt` | Full training deps |
-| `requirements-fetch-only.txt` | Slim deps for the DuckDuckGo scraper in `tools/` |
+| `requirements-fetch-only.txt` | Slim deps for the dataset crawler in `tools/` |
 
-See [`DATASET.md`](../../DATASET.md) for the dataset structure and Food-101 / Imagenette mapping.
+See [`DATASET.md`](../../DATASET.md) for the dataset structure and class layout.

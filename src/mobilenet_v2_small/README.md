@@ -1,4 +1,4 @@
-# EfficientNet Lite GPU Module
+# MobileNetV2 Small Module
 
 This directory contains the active training/validation/test pipeline used by this repository.
 

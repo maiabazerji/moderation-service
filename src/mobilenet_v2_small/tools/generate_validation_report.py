@@ -474,7 +474,7 @@ def _section_export_formats(ss):
 
     headers = ["Format", "Fichier(s)", "Taille"]
     rows = [
-        ["Keras (.keras)", "BestModelEfficientNetLite.keras", "5.3 MB"],
+        ["Keras (.keras)", "BestModelMobileNetV2.keras", "5.3 MB"],
         ["TensorFlow.js", "model.json + group1-shard1of1.bin", "1.5 MB"],
         ["TFLite (dynamic range)", "model.tflite", "0.5 MB"],
         ["TFLite (float16)", "model_float16.tflite", "0.8 MB"],

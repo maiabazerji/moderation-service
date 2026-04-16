@@ -17,7 +17,7 @@ import argparse
 import sys
 from pathlib import Path
 
-DEFAULT_REPO = "whispr/efficientnet-food-classifier"
+DEFAULT_REPO = "whispr/mobilenetv2-food-classifier"
 EXPORTS_DIR = "exports"
 
 
@@ -48,7 +48,7 @@ def main():
 
     # Only upload model-essential files.
     INCLUDE = {
-        "BestModelEfficientNetLite.keras",
+        "BestModelMobileNetV2.keras",
         "README.md",
         "labels.json",
         "config.json",
@@ -117,7 +117,7 @@ def main():
         folder_path=str(exports_dir),
         repo_id=args.repo_id,
         repo_type="model",
-        commit_message="Upload EfficientNet food classifier (Keras + TFLite + TFJS)",
+        commit_message="Upload MobileNetV2 food classifier (Keras + TFLite + TFJS)",
     )
 
     print(f"\nDone! Model available at: https://huggingface.co/{args.repo_id}")

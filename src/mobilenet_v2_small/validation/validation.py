@@ -107,7 +107,7 @@ def run(cfg: dict):
     train_dir_name = train_cfg.get("train_dir", "Train")
     default_dataset_dir = (module_root / dataset_root / train_dir_name).resolve()
 
-    default_model = (module_root / comp_cfg.get("model_name", "BestModelEfficientNetLite.h5")).resolve()
+    default_model = (module_root / comp_cfg.get("model_name", "BestModelMobileNetV2.h5")).resolve()
     default_image = (module_root / "validation/images/junk_food.jpg").resolve()
 
     dataset_dir = _resolve_path(module_root, val_cfg.get("dataset_dir"), default_dataset_dir)

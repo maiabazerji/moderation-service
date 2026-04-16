@@ -72,7 +72,7 @@ def config(model_name : str):
         "compilation_config": {
             "compiler" : "gcc",
             "compiler_args" : [],
-            "model_name" : "BestModelEfficientNetLite.h5",
+            "model_name" : "BestModelMobileNetV2.h5",
         }
     }
 
