@@ -1,6 +1,6 @@
 # Moderation Service
 
-This repository contains three complementary food-moderation models, each with its own training pipeline:
+Service de modération de contenu pour Whispr Messenger. Ce repository contient trois modèles complémentaires de classification, chacun avec son propre pipeline d'entraînement :
 
 | Model | Framework | Role |
 |---|---|---|
