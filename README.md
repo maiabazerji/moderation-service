@@ -107,6 +107,13 @@ Windows helpers:
 - `run_fetch_google_dataset.bat`
 - `run_fetch_google_dataset_dry_run.bat`
 
+## Tech Stack
+
+- **Langages** : Python 3.10+ (TensorFlow, PyTorch)
+- **API** : FastAPI
+- **Conteneurisation** : Docker
+- **ML** : EfficientNet-Lite, MobileNetV2, MobileNetV3, ViT
+
 ## Documentation
 
 - Project index: [`documentation/PROJECT_INDEX.md`](documentation/PROJECT_INDEX.md)
