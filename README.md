@@ -1,6 +1,6 @@
 # Moderation Service
 
-This repository contains three complementary food-moderation models, each with its own training pipeline:
+Service de modération de contenu pour Whispr Messenger. Ce repository contient trois modèles complémentaires de classification, chacun avec son propre pipeline d'entraînement :
 
 | Model | Framework | Role |
 |---|---|---|
@@ -106,6 +106,27 @@ Windows helpers:
 
 - `run_fetch_google_dataset.bat`
 - `run_fetch_google_dataset_dry_run.bat`
+
+## Architecture
+
+```
+┌──────────────┐     ┌────────────────────┐
+│ Media Service│────▶│ Moderation Service │
+└──────────────┘     └────────┬───────────┘
+                              │
+                  ┌───────────┼───────────┐
+                  │           │           │
+            ┌─────▼─────┐ ┌──▼────────┐ ┌▼──────────┐
+            │MobileNetV2│ │MobileNetV3│ │ ViT-Video │
+            └───────────┘ └───────────┘ └───────────┘
+```
+
+## Tech Stack
+
+- **Langages** : Python 3.10+ (TensorFlow, PyTorch)
+- **API** : FastAPI
+- **Conteneurisation** : Docker
+- **ML** : EfficientNet-Lite, MobileNetV2, MobileNetV3, ViT
 
 ## Documentation
 
