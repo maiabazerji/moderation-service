@@ -159,3 +159,5 @@ Upload média ──▶ Media Service ──▶ Moderation Service
 - Module READMEs: [`src/mobilenet_v2_small/README.md`](src/mobilenet_v2_small/README.md), [`src/vit_video/README.md`](src/vit_video/README.md)
 - Windows long path setup: [`documentation/WINDOWS_LONG_PATHS.md`](documentation/WINDOWS_LONG_PATHS.md)
 - Architecture reference: [`documentation/1_architecture/1_system_design.md`](documentation/1_architecture/1_system_design.md)
+- [Guide de contribution](CONTRIBUTING.md)
+- [Politique de sécurité](SECURITY.md)
