@@ -129,6 +129,25 @@ Windows helpers:
 - **ML** : EfficientNet-Lite, MobileNetV2, MobileNetV3, ViT
 - **Dataset** : HuggingFace (`maia2000/food-classifier-dataset`)
 
+## Flux de modération
+
+```
+Upload média ──▶ Media Service ──▶ Moderation Service
+                                         │
+                                   ┌─────▼─────┐
+                                   │ Classif.   │
+                                   │ Image/Video│
+                                   └─────┬─────┘
+                                         │
+                                  ┌──────▼──────┐
+                                  │  Décision   │
+                                  │ safe/unsafe │
+                                  └──────┬──────┘
+                                         │
+                                    Retour au
+                                   Media Service
+```
+
 ## Documentation
 
 - Project index: [`documentation/PROJECT_INDEX.md`](documentation/PROJECT_INDEX.md)
