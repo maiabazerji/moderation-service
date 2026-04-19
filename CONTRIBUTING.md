@@ -27,3 +27,11 @@ python main.py --action train
 ## GPU
 
 Pour l'entraînement avec GPU, voir `src/efficientnet_lite_gpu/tools/` pour les outils NVIDIA CUDA.
+
+## Modèles disponibles
+
+| Modèle | Dossier | Usage |
+|--------|---------|-------|
+| MobileNetV2 | `src/mobilenet_v2_small/` | Classification image (edge) |
+| MobileNetV3 | `src/mobilenet_v3_small/` | Classification image (mobile) |
+| ViT-Video | `src/vit_video/` | Classification vidéo |
