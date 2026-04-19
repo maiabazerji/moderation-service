@@ -127,6 +127,7 @@ Windows helpers:
 - **API** : FastAPI
 - **Conteneurisation** : Docker
 - **ML** : EfficientNet-Lite, MobileNetV2, MobileNetV3, ViT
+- **Dataset** : HuggingFace (`maia2000/food-classifier-dataset`)
 
 ## Documentation
 
