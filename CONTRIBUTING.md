@@ -23,3 +23,7 @@ python main.py --action train
 
 - Branches : `WHISPR-XXX-description`
 - Tests avant chaque PR
+
+## GPU
+
+Pour l'entraînement avec GPU, voir `src/efficientnet_lite_gpu/tools/` pour les outils NVIDIA CUDA.
