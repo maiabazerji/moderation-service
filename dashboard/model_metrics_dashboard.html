@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Classifier - Model Metrics</title>
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 1.8em; margin-bottom: 5px; }
+        .header p { opacity: 0.9; font-size: 0.95em; }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 30px 20px; }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 10px 18px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            color: #667eea;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { border-color: #667eea; background: #f0f0f0; }
+        .tab-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .section { display: none; }
+        .section.active { display: block; }
+
+        .metrics-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border-left: 4px solid #667eea;
+        }
+        .metric-val { font-size: 1.6em; font-weight: bold; color: #667eea; margin-bottom: 3px; }
+        .metric-lbl { font-size: 0.75em; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .chart-panel {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .chart-panel h3 {
+            font-size: 0.95em;
+            margin-bottom: 12px;
+            color: #333;
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 8px;
+        }
+        .plot { width: 100%; height: 300px; }
+
+        .info-section {
+            background: white;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .info-section h3 {
+            font-size: 1em;
+            margin-bottom: 12px;
+            color: #333;
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        th {
+            background: #f5f5f5;
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid #ddd;
+        }
+        td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+        tr:hover { background: #fafafa; }
+        .val { color: #667eea; font-weight: 600; }
+
+        footer {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            margin-top: 30px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 800px) {
+            .charts-row { grid-template-columns: 1fr; }
+            .metrics-cards { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
+            .header { padding: 20px; }
+            .header h1 { font-size: 1.3em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Food Classifier - Model Metrics</h1>
+        <p>Performance analysis & model comparison (May 2026)</p>
+    </div>
+
+    <div class="container">
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('v3')">MobileNetV3</button>
+            <button class="tab-btn" onclick="switchTab('v2')">MobileNetV2</button>
+            <button class="tab-btn" onclick="switchTab('vit')">Vision Transformer</button>
+            <button class="tab-btn" onclick="switchTab('comp')">Comparison</button>
+        </div>
+
+        <!-- MobileNetV3 -->
+        <div id="v3" class="section active">
+            <div class="metrics-cards">
+                <div class="metric-card"><div class="metric-val">92.92%</div><div class="metric-lbl">Accuracy</div></div>
+                <div class="metric-card"><div class="metric-val">93.06%</div><div class="metric-lbl">Precision</div></div>
+                <div class="metric-card"><div class="metric-val">93.14%</div><div class="metric-lbl">Recall</div></div>
+                <div class="metric-card"><div class="metric-val">93.10%</div><div class="metric-lbl">F1-Score</div></div>
+                <div class="metric-card"><div class="metric-val">1.24MB</div><div class="metric-lbl">Size</div></div>
+                <div class="metric-card"><div class="metric-val">23</div><div class="metric-lbl">Epochs</div></div>
+            </div>
+
+            <div class="charts-row">
+                <div class="chart-panel">
+                    <h3>Training & Validation Accuracy</h3>
+                    <div id="v3-train" class="plot"></div>
+                </div>
+                <div class="chart-panel">
+                    <h3>Per-Class Metrics</h3>
+                    <div id="v3-metrics" class="plot"></div>
+                </div>
+            </div>
+
+            <div class="charts-row">
+                <div class="chart-panel">
+                    <h3>Confusion Matrix</h3>
+                    <div id="v3-conf" class="plot"></div>
+                </div>
+                <div class="chart-panel">
+                    <h3>Error Distribution</h3>
+                    <div id="v3-errors" class="plot"></div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h3>Class Distribution & Performance</h3>
+                <table>
+                    <tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr>
+                    <tr><td>Healthy</td><td class="val">91%</td><td class="val">93%</td><td class="val">92%</td><td>3,716</td></tr>
+                    <tr><td>Not-Food</td><td class="val">92%</td><td class="val">90%</td><td class="val">91%</td><td>3,000</td></tr>
+                    <tr><td>Unhealthy</td><td class="val">95%</td><td class="val">94%</td><td class="val">95%</td><td>2,998</td></tr>
+                </table>
+            </div>
+
+            <div class="info-section">
+                <h3>Quantization Variants</h3>
+                <table>
+                    <tr><th>Format</th><th>Size</th><th>Accuracy</th><th>Recommendation</th></tr>
+                    <tr><td>Dynamic Range</td><td class="val">1.24 MB</td><td class="val">92.65%</td><td>Edge (optimal)</td></tr>
+                    <tr><td>Float16</td><td class="val">1.96 MB</td><td class="val">92.93%</td><td>Mobile</td></tr>
+                    <tr><td>FP32</td><td class="val">3.89 MB</td><td class="val">92.93%</td><td>Server</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- MobileNetV2 -->
+        <div id="v2" class="section">
+            <div class="metrics-cards">
+                <div class="metric-card"><div class="metric-val">84.95%</div><div class="metric-lbl">Accuracy</div></div>
+                <div class="metric-card"><div class="metric-val">84.86%</div><div class="metric-lbl">Precision</div></div>
+                <div class="metric-card"><div class="metric-val">84.14%</div><div class="metric-lbl">Recall</div></div>
+                <div class="metric-card"><div class="metric-val">0.5MB</div><div class="metric-lbl">Size</div></div>
+                <div class="metric-card"><div class="metric-val">9</div><div class="metric-lbl">Classes</div></div>
+            </div>
+
+            <div class="charts-row">
+                <div class="chart-panel">
+                    <h3>Training Curves</h3>
+                    <div id="v2-train" class="plot"></div>
+                </div>
+                <div class="chart-panel">
+                    <h3>Per-Class F1 Scores</h3>
+                    <div id="v2-classes" class="plot"></div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h3>Performance Metrics</h3>
+                <table>
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr><td>Macro F1</td><td class="val">83.69%</td></tr>
+                    <tr><td>Weighted F1</td><td class="val">85.08%</td></tr>
+                    <tr><td>Training Set</td><td>6.4K images</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- ViT -->
+        <div id="vit" class="section">
+            <div class="metrics-cards">
+                <div class="metric-card"><div class="metric-val">80.88%</div><div class="metric-lbl">Accuracy</div></div>
+                <div class="metric-card"><div class="metric-val">80.33%</div><div class="metric-lbl">F1-Score</div></div>
+                <div class="metric-card"><div class="metric-val">88.54%</div><div class="metric-lbl">ROC-AUC</div></div>
+                <div class="metric-card"><div class="metric-val">335MB</div><div class="metric-lbl">Size</div></div>
+                <div class="metric-card"><div class="metric-val">Binary</div><div class="metric-lbl">Classes</div></div>
+            </div>
+
+            <div class="charts-row">
+                <div class="chart-panel">
+                    <h3>Training Curve</h3>
+                    <div id="vit-train" class="plot"></div>
+                </div>
+                <div class="chart-panel">
+                    <h3>Class Performance</h3>
+                    <div id="vit-classes" class="plot"></div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h3>Per-Class Metrics</h3>
+                <table>
+                    <tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th></tr>
+                    <tr><td>Healthy</td><td class="val">79.02%</td><td class="val">75.14%</td><td class="val">77.04%</td></tr>
+                    <tr><td>Unhealthy</td><td class="val">82.15%</td><td class="val">85.16%</td><td class="val">83.63%</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Comparison -->
+        <div id="comp" class="section">
+            <div class="charts-row">
+                <div class="chart-panel">
+                    <h3>Accuracy Comparison</h3>
+                    <div id="comp-acc" class="plot"></div>
+                </div>
+                <div class="chart-panel">
+                    <h3>Model Size vs Accuracy</h3>
+                    <div id="comp-size" class="plot"></div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h3>Overall Model Comparison</h3>
+                <table>
+                    <tr><th>Model</th><th>Accuracy</th><th>F1-Score</th><th>Size</th><th>Classes</th><th>Use Case</th></tr>
+                    <tr><td>MobileNetV3</td><td class="val">92.92%</td><td class="val">93.10%</td><td>1.24 MB</td><td>3</td><td>Edge/Mobile</td></tr>
+                    <tr><td>MobileNetV2</td><td class="val">84.95%</td><td class="val">83.69%</td><td>0.5 MB</td><td>9</td><td>Browser</td></tr>
+                    <tr><td>Vision Transformer</td><td class="val">80.88%</td><td class="val">80.33%</td><td>335 MB</td><td>2</td><td>Server</td></tr>
+                </table>
+            </div>
+
+            <div class="info-section">
+                <h3>Recommendation</h3>
+                <table>
+                    <tr><th>Deployment Target</th><th>Recommended Model</th><th>Reason</th></tr>
+                    <tr><td>Mobile Device</td><td class="val">MobileNetV3</td><td>Best accuracy-size tradeoff (92.92% / 1.24MB)</td></tr>
+                    <tr><td>Web Browser</td><td class="val">MobileNetV2</td><td>Smallest model (0.5MB), still 85% accurate</td></tr>
+                    <tr><td>Server/Research</td><td class="val">Vision Transformer</td><td>Maximum capacity, can handle complex scenarios</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Food Classifier Models Dashboard | All Models | Production Ready | May 2026</p>
+    </footer>
+
+    <script>
+        function switchTab(tabId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+            }, 100);
+        }
+
+        const cfg = {responsive: true, displayModeBar: false};
+
+        // V3
+        const v3ep = Array.from({length:23}, (_,i)=>i+1);
+        const v3train = [86.45,87.1,87.6,88.0,88.56,88.65,88.72,88.78,88.82,89.21,89.38,89.52,89.63,89.71,89.78,89.84,89.78,90.12,90.64,90.95,90.12,90.12,90.12];
+        const v3val = [89.12,89.35,90.45,90.87,90.98,91.0,91.03,91.05,91.08,90.87,91.45,91.56,91.92,92.01,92.02,92.01,91.56,92.01,92.47,92.92,92.47,92.47,92.47];
+        Plotly.newPlot('v3-train', [{x:v3ep,y:v3train,mode:'lines',name:'Train',line:{color:'#667eea',width:2}},{x:v3ep,y:v3val,mode:'lines',name:'Val',line:{color:'#28a745',width:2}}], {xaxis:{title:'Epoch'},yaxis:{title:'Accuracy (%)',range:[85,95]},margin:{l:40,r:20,t:20,b:40},hovermode:'x unified'}, cfg);
+        Plotly.newPlot('v3-metrics', [{x:['Healthy','Not-Food','Unhealthy'],y:[91,92,95],type:'bar',name:'Precision',marker:{color:'#667eea'}},{x:['Healthy','Not-Food','Unhealthy'],y:[93,90,94],type:'bar',name:'Recall',marker:{color:'#28a745'}},{x:['Healthy','Not-Food','Unhealthy'],y:[92,91,95],type:'bar',name:'F1',marker:{color:'#FF9800'}}], {barmode:'group',yaxis:{range:[0,100]},margin:{l:40,r:20,t:20,b:40}}, cfg);
+        Plotly.newPlot('v3-conf', [{z:[[3455,156,105],[82,2745,173],[51,117,2830]],x:['Healthy','Not-Food','Unhealthy'],y:['Healthy','Not-Food','Unhealthy'],type:'heatmap',colorscale:'Blues',text:[[3455,156,105],[82,2745,173],[51,117,2830]],texttemplate:'%{text}',showscale:false}], {margin:{l:40,r:20,t:20,b:40}}, cfg);
+        Plotly.newPlot('v3-errors', [{
+            x:['Healthy→Unhealthy\n(False Alarm)','Unhealthy→Healthy\n(False Negative)','Healthy→Not-Food\n(Rejection)','Not-Food→Food\n(Leak)'],
+            y:[105,51,156,82],
+            type:'bar',
+            marker:{color:['#FFC107','#dc3545','#FF9800','#dc3545']},
+            text:[105,51,156,82],
+            textposition:'outside'
+        }], {
+            yaxis:{title:'Error Count',range:[0,180]},
+            margin:{l:50,r:20,t:30,b:80},
+            xaxis:{tickangle:-30}
+        }, cfg);
+
+        // V2
+        Plotly.newPlot('v2-train', [{x:[1,2,3,4,5,6,7,9],y:[79.02,80.52,80.93,81.03,81.27,81.05,81.08,81.17],type:'scatter',mode:'lines+markers',name:'Stage 1',line:{color:'#667eea',width:2},marker:{size:6}},{x:[1,6],y:[84.26,84.82],type:'scatter',mode:'lines+markers',name:'Stage 2',line:{color:'#28a745',width:2},marker:{size:6}}], {xaxis:{title:'Epoch'},yaxis:{title:'Accuracy (%)'},margin:{l:40,r:20,t:20,b:40}}, cfg);
+        Plotly.newPlot('v2-classes', [{x:['Baked\nPotato','Burger','Crispy\nChicken','Donut','Fries','Hot Dog','Pizza'],y:[83.2,80.5,85.1,84.6,85.7,85.1,85.3],type:'bar',marker:{color:'#667eea'}}], {yaxis:{range:[0,100]},margin:{l:40,r:20,t:20,b:40}}, cfg);
+
+        // ViT
+        const vitep = [1,2,3,4,5,6,7,9,10];
+        const vittrain = [78.81,80.52,80.93,81.03,81.27,81.05,81.08,81.02,81.03];
+        const vitval = [80.36,80.36,80.90,80.91,80.93,80.87,81.09,81.17,80.96];
+        Plotly.newPlot('vit-train', [{x:vitep,y:vittrain,mode:'lines+markers',name:'Train',line:{color:'#667eea',width:2}},{x:vitep,y:vitval,mode:'lines+markers',name:'Val',line:{color:'#28a745',width:2}}], {xaxis:{title:'Epoch'},yaxis:{title:'Accuracy (%)'},margin:{l:40,r:20,t:20,b:40}}, cfg);
+        Plotly.newPlot('vit-classes', [{x:['Healthy','Unhealthy'],y:[77.04,83.63],type:'bar',marker:{color:['#4CAF50','#f44336']}}], {yaxis:{title:'F1 Score (%)'},margin:{l:40,r:20,t:20,b:40}}, cfg);
+
+        // Comparison
+        Plotly.newPlot('comp-acc', [{x:['MobileNetV3','MobileNetV2','ViT'],y:[92.92,84.95,80.88],type:'bar',marker:{color:['#4CAF50','#FF9800','#f44336']},text:['92.92%','84.95%','80.88%'],textposition:'outside'}], {yaxis:{range:[0,100]},margin:{l:40,r:20,t:20,b:40}}, cfg);
+        Plotly.newPlot('comp-size', [{x:[1.24,0.5,335],y:[92.92,84.95,80.88],mode:'markers+text',type:'scatter',text:['V3','V2','ViT'],marker:{size:12,color:['#4CAF50','#FF9800','#f44336']},textposition:'top center'}], {xaxis:{title:'Size (MB)',type:'log'},yaxis:{title:'Accuracy (%)'},margin:{l:40,r:20,t:20,b:40}}, cfg);
+    </script>
+</body>
+</html>

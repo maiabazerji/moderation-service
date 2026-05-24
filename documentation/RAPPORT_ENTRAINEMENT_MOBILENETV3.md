@@ -103,17 +103,25 @@ Matrice de confusion : `/content/confusion_matrix.png`. Rapport de classificatio
 
 Le TFJS est uploadé dans `maia2000/mobilenet-food-binary/tfjs/` (cellule 7) — c'est le format consommé par le front Whispr.
 
+## Pipeline d'entraînement (mis à jour)
+
+Le notebook tourne maintenant en **deux stages** :
+
+1. **Stage 1 (cellule 4)** — backbone gelé, 20 epochs à LR 1e-3. C'est ce qui était mesuré historiquement à ~89 % val acc.
+2. **Stage 2 (cellule 5, nouvelle)** — backbone dégelé (sauf BatchNorm), 3 epochs à LR 1e-5. Skippe automatiquement si `train_state.json` contient `"stage2_done": true`. Gain attendu : +2-3 pts val acc.
+
+La cellule 7 (export + confusion matrix) inclut désormais une **analyse de confiance** qui balaye plusieurs seuils (`0.5 → 0.95`) et reporte le compromis (`% uncertain` vs `accuracy sur le subset certain`). Sert à calibrer le seuil de routage vers la revue humaine avant déploiement.
+
 ## Limites du run actuel
 
-1. **Pas de fine-tune** : backbone reste gelé sur toute la durée. Un stage 2 court (LR 1e-5, 3-5 epochs, `base.trainable = True`) gagnerait probablement 2-3 pts d'accuracy. Pas activé ici pour rester simple.
-2. **Pas de split de test indépendant**. La métrique reportée vient du split val, qui sert aussi à monitorer pendant l'entraînement. Donc légère contamination méthodologique. Pour un livrable produit, prévoir un test set figé (idéalement hash-safe).
-3. **Aucun callback `EarlyStopping`** : le run aurait pu s'arrêter dès l'epoch 12 sans perte de qualité.
-4. **`FORCE_RETRAIN = True`** efface les checkpoints à chaque lancement. Pratique en debug, dangereux en prod — basculer à `False` avant un run final pour exploiter la reprise sur déconnexion.
-5. **Token HF en dur** dans la cellule 1 (`hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`). À sortir vers les Colab Secrets ou les variables d'environnement avant tout commit/partage du notebook.
+1. **Pas de split de test indépendant**. La métrique reportée vient du split val, qui sert aussi à monitorer pendant l'entraînement. Donc légère contamination méthodologique. Pour un livrable produit, prévoir un test set figé (idéalement hash-safe).
+2. **Aucun callback `EarlyStopping`** : le run aurait pu s'arrêter dès l'epoch 12 sans perte de qualité.
+3. **`FORCE_RETRAIN = True`** efface les checkpoints à chaque lancement. Pratique en debug, dangereux en prod — basculer à `False` avant un run final pour exploiter la reprise sur déconnexion.
+4. **Token HF en dur** dans la cellule 1 (`hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`). À sortir vers les Colab Secrets ou les variables d'environnement avant tout commit/partage du notebook.
+5. **Pas de test sur trafic Whispr réel**. La métrique reste mesurée sur la distribution d'entraînement.
 
 ## Verdict
 
-Le modèle est en état pilote pour la modération photo Whispr (89 % val acc, ~1 MB en TFJS quantisé). Avant d'en faire une v1 produit, deux axes :
+Le modèle est en état pilote pour la modération photo Whispr (89 % val acc affichée, ~83 % sur la tâche binaire réelle une fois `not_food` retiré du calcul, ~1 MB en TFJS quantisé). Les corrections appliquées (dataset CIFAR+SVHN, stage 2, seuil de confiance) lèvent les blocages techniques ; il reste un dernier verrou **produit** :
 
-1. **stage 2 fine-tune** sur ~3 epochs (LR 1e-5) pour ramener l'accuracy au-dessus de 91 % ;
-2. **test set figé** + matrice de confusion officielle, idéalement avec des photos issues du parc Whispr réel (selfies, captures d'écran) pour valider la classe `not_food` sur la distribution cible.
+- **Test set figé issu du parc Whispr réel** (selfies, captures d'écran, photos cuisine maison). Tant que ce test n'existe pas, on ignore l'écart entre la perf affichée et la perf produit. Cible : 200-500 images annotées par 2 personnes pour avoir un inter-annotator agreement, voir `ANALYSE_ERREURS.md` §5.1.

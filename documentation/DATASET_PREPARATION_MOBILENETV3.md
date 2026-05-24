@@ -11,7 +11,7 @@ HF Hub (maia2000/food-classifier-dataset)
         │  (si vide → fallback)
         ▼
 Food-101 (ethz/food101)                       ← images de nourriture, remappées
-Fashion MNIST + CIFAR-10 + SVHN               ← images "not_food" (mode, scènes, chiffres)
+CIFAR-10 + SVHN                               ← images "not_food" (scènes naturelles, chiffres réels)
         ▼
 /content/frames/{healthy, unhealthy, not_food}
         ▼
@@ -55,17 +55,22 @@ Pour éviter que le modèle prédise `healthy` / `unhealthy` sur n'importe quell
 
 ```python
 NOT_FOOD_CAP = 20000
+NOT_FOOD_SOURCES = [
+    ("cifar10", None,           "train", "img",   10000),
+    ("svhn",    "full_numbers", "train", "image", 10000),
+]
 ```
 
-Trois sources chargées en cascade jusqu'à atteindre le quota :
+Deux sources chargées séquentiellement, **avec un cap par source** (10 k chacune) pour garantir un mélange équilibré :
 
 | Source | Clé image | Note |
 |---|---|---|
-| `fashion_mnist` | `image` | 28×28 N&B → converties RGB, upsamplées par Keras au chargement |
-| `cifar10` | `img` | 32×32 RGB, scènes naturelles |
-| `svhn` (`full_numbers`) | `image` | photos de chiffres de rue, formats variables |
+| `cifar10` | `img` | 32×32 RGB, scènes naturelles (animaux, véhicules, bâtiments) |
+| `svhn` (`full_numbers`) | `image` | photos réelles de chiffres de rue, formats variables |
 
-Pratique : Fashion-MNIST suffit à saturer le quota (60 k images dispo), donc CIFAR-10 et SVHN ne se déclenchent que si on monte `NOT_FOOD_CAP` ou si Fashion-MNIST échoue. C'est un choix : la diversité visuelle reste *correcte* à 20 k Fashion-MNIST, mais ajouter CIFAR/SVHN donne un `not_food` plus robuste face aux selfies, captures d'écran et textes.
+**Fashion-MNIST a été retiré** (cf. `ANALYSE_ERREURS.md` §3.3) : ses 28×28 N&B apprenaient au modèle un shortcut trivial — *"image floue grisâtre upsamplée = not_food"* — qui s'effondre sur le trafic réel Whispr (selfies couleur, screenshots HD, captures d'app). Le mélange CIFAR + SVHN reste petit en résolution mais 100 % RGB et issu de photos réelles, ce qui force le modèle à apprendre des features plus utiles.
+
+Pour aller plus loin côté domaine produit : déposer manuellement screenshots, selfies, captures de chat dans `/content/frames/not_food` (cf. message imprimé par la cellule). C'est l'extension prévue pour combler l'écart distribution-d'entraînement vs distribution-produit.
 
 ### Personnalisation
 
@@ -93,14 +98,16 @@ Les listes `UNHEALTHY` / `HEALTHY` codées en cellule 3 (`burgers`, `candy_sweet
 
 ## Bilan d'un run de référence
 
-Comptages observés à la fin de la cellule 2 du run de référence :
+Comptages observés à la fin de la cellule 2 du run de référence (**ancien dataset, Fashion-MNIST inclus**) :
 
 | Cible | Images |
 |---|---|
 | `healthy` | 16 500 |
 | `unhealthy` | 19 500 |
-| `not_food` | 20 000 |
+| `not_food` | 20 000 (Fashion-MNIST) |
 | **Total** | **56 000** |
+
+Après le retrait de Fashion-MNIST, le total `not_food` devient ~20 000 répartis 10 k CIFAR-10 + 10 k SVHN. Le total dataset reste autour de 56 k images, mais le `not_food` est désormais 100 % couleur et issu de photos réelles. Un re-run est nécessaire pour publier les nouveaux chiffres val acc / matrice de confusion.
 
 Split automatique appliqué par `tf.keras.utils.image_dataset_from_directory(..., validation_split=0.2, seed=42)` :
 
