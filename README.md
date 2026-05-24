@@ -1,163 +1,80 @@
-# Moderation Service
+---
+license: apache-2.0
+tags: [image-classification, food, mobile, mobilenet, tensorflow]
+library_name: tensorflow
+---
 
-Service de modération de contenu pour Whispr Messenger. Ce repository contient trois modèles complémentaires de classification, chacun avec son propre pipeline d'entraînement :
+# MobileNetV3 Food Classifier (3-class)
 
-| Model | Framework | Role |
-|---|---|---|
-| [MobileNetV2-0.35](src/mobilenet_v2_small/) | TensorFlow / Keras | Edge-first image classifier (sub-1 MB TFLite) |
-| [MobileNetV3-Small](src/mobilenet_v3_small/) | TensorFlow / Keras | Lightweight image classifier (sub-10 ms on mobile) |
-| [ViT-Video](src/vit_video/) | PyTorch | Video / multi-frame classifier (ViT-B/16 or MobileViT-XXS + BiLSTM) |
+A lightweight, production-ready image classifier for food content moderation. Classifies images into healthy food, unhealthy food, or not-food (non-meal content).
 
-All three are trained on the same canonical HF dataset (`maia2000/food-classifier-dataset`) — see [`DATASET.md`](DATASET.md) for the data pipelines.
+## Model Details
 
-## Quick Start
+- **Architecture**: MobileNetV3Small (frozen backbone) + trainable classification head
+- **Input**: 224x224 RGB images
+- **Output**: 3 classes (healthy, unhealthy, not_food)
+- **Framework**: TensorFlow/Keras
+- **Best Validation Accuracy**: 92.92%
 
-1. Clone the repository and enter the project:
+### Performance
 
-```bash
-git clone https://github.com/whispr-messenger/moderation-service.git
-cd moderation-service
-```
+| Metric | Value |
+|--------|-------|
+| Accuracy | 92.92% |
+| Precision (macro) | 93.06% |
+| Recall (macro) | 93.14% |
+| F1-Score (macro) | 93.10% |
 
-2. Switch to the active module directory:
+### Per-Class Performance
 
-```bash
-cd src/mobilenet_v2_small
-```
+| Class | Precision | Recall | F1 | Support |
+|-------|-----------|--------|----|----|
+| Healthy | 91% | 93% | 92% | 3,716 |
+| Not-Food | 92% | 90% | 91% | 3,000 |
+| Unhealthy | 95% | 94% | 95% | 2,998 |
 
-3. Install dependencies:
+## Training Configuration
 
-```bash
-pip install -r requirements.txt
-```
+### Stage 1: Frozen Backbone (20 epochs)
+- ImageNet-pretrained MobileNetV3Small with frozen weights
+- Classifier head: GlobalAveragePooling2D -> Dropout(0.2) -> Dense(3, softmax)
+- Optimizer: Adam (lr=1e-3)
+- Loss: Categorical Crossentropy
+- Best val accuracy: 91.56%
 
-4. Run pipeline actions:
+### Stage 2: Fine-tuning (3 epochs)
+- Unfroze backbone, kept 52 BatchNorm layers frozen
+- Optimizer: Adam (lr=1e-5)
+- Fine-tuned for food-specific feature learning
+- Final val accuracy: 92.92%
 
-```bash
-python main.py --action train
-python main.py --action eval
-python main.py --action test
-```
+### Data Augmentation
+- RandomFlip (horizontal)
+- RandomRotation (0.05)
+- RandomZoom (0.1)
 
-### MobileNetV3-Small (image classifier, lightweight)
+## Dataset
 
-```bash
-cd src/mobilenet_v3_small
-pip install -r requirements.txt
+- Total: 9,714 validation images from Food-101
+- Healthy (3,716): Fruits, grains, salads, seafood, smoothies, soups, vegetables
+- Unhealthy (2,998): Burgers, candy, desserts, fried food, pizza, snacks, sugary drinks
+- Not-Food (3,000): General objects, street numbers, screenshots
 
-# Train (downloads/uses HF dataset, runs two-stage training: frozen backbone + fine-tune)
-python main.py --action train
+## Model Variants
 
-# Evaluate the trained Keras model on validation/images/
-python main.py --action eval
+| Format | Size | Accuracy | Use Case |
+|--------|------|----------|----------|
+| Dynamic Range | 1.24 MB | 92.65% | Edge devices (optimal) |
+| Float16 | 1.96 MB | 92.93% | Mobile apps |
+| FP32 | 3.89 MB | 92.93% | Server/inference |
 
-# Evaluate the TFLite build (after running convert_to_tflite.py)
-python convert_to_tflite.py --quantize
-python main.py --action eval_tflite
+## Uncertainty Analysis
 
-# Smoke test (hardware + dataset sanity checks)
-python main.py --action test
-```
+Confidence threshold = 0.70:
+- Certain predictions: 90.8%
+- Routed to review: 9.2%
+- Accuracy on certain: 94.33%
 
-Full Colab training with HF push + TFLite + TFJS exports: open [`src/mobilenet_v3_small/mobilenet_colab.ipynb`](src/mobilenet_v3_small/mobilenet_colab.ipynb). See [`src/mobilenet_v3_small/TECHNICAL.md`](src/mobilenet_v3_small/TECHNICAL.md) for hyperparameters and the mobile-export details.
+## License
 
-### ViT-Video (PyTorch, video classifier)
-
-```bash
-cd src/vit_video
-pip install -r requirements.txt
-
-# 1. Fetch + split videos -> extract frames (idempotent: skips if data already present)
-python run_pipeline.py --videos-per-keyword 15 --max-frames 60 --frame-size 224
-
-# 2. Train (auto-picks ViT-B/16 on CUDA, MobileViT-XXS on CPU; BiLSTM temporal head)
-python train.py --frames-root food_data/frames --epochs 20 --batch-size 8 --lr 3e-5 --patience 7
-
-# 3. Resume from a checkpoint
-python train.py --resume models/best_food_classifier.pth --epochs 10
-
-# 4. Evaluate held-out test split
-python validate_model.py --model models/best_food_classifier.pth
-
-# 5. Export for deployment (TorchScript + ONNX + TFLite; adds .ptl Lite Interpreter build for mobile)
-python export_mobile.py --model models/best_food_classifier.pth --format torchscript onnx tflite --quantize
-
-# Inference on a single video
-python inference.py --model models/best_food_classifier.pth --video path/to/clip.mp4
-```
-
-Full Colab training with HF dataset download + Drive checkpointing: open [`src/vit_video/vit_video.ipynb`](src/vit_video/vit_video.ipynb) (multi-class) or [`src/vit_video/vit_video_binary.ipynb`](src/vit_video/vit_video_binary.ipynb) (binary). See [`src/vit_video/TECHNICAL.md`](src/vit_video/TECHNICAL.md) for the model spec, export formats, and the TFJS incompatibility notes.
-
-## Dataset Fetch (Optional)
-
-If you only need the dataset fetch tool dependencies:
-
-```bash
-pip install -r requirements-fetch-only.txt
-```
-
-Dry-run fetch command:
-
-```bash
-python -m tools.fetch_google_dataset --dry-run
-```
-
-Windows helpers:
-
-- `run_fetch_google_dataset.bat`
-- `run_fetch_google_dataset_dry_run.bat`
-
-## Architecture
-
-```
-┌──────────────┐     ┌────────────────────┐
-│ Media Service│────▶│ Moderation Service │
-└──────────────┘     └────────┬───────────┘
-                              │
-                  ┌───────────┼───────────┐
-                  │           │           │
-            ┌─────▼─────┐ ┌──▼────────┐ ┌▼──────────┐
-            │MobileNetV2│ │MobileNetV3│ │ ViT-Video │
-            └───────────┘ └───────────┘ └───────────┘
-```
-
-## Tech Stack
-
-- **Langages** : Python 3.10+ (TensorFlow, PyTorch)
-- **API** : FastAPI
-- **Conteneurisation** : Docker
-- **ML** : EfficientNet-Lite, MobileNetV2, MobileNetV3, ViT
-- **Dataset** : HuggingFace (`maia2000/food-classifier-dataset`)
-
-## Flux de modération
-
-```
-Upload média ──▶ Media Service ──▶ Moderation Service
-                                         │
-                                   ┌─────▼─────┐
-                                   │ Classif.   │
-                                   │ Image/Video│
-                                   └─────┬─────┘
-                                         │
-                                  ┌──────▼──────┐
-                                  │  Décision   │
-                                  │ safe/unsafe │
-                                  └──────┬──────┘
-                                         │
-                                    Retour au
-                                   Media Service
-```
-
-## Documentation
-
-- Project index: [`documentation/PROJECT_INDEX.md`](documentation/PROJECT_INDEX.md)
-- Dataset pipelines: [`DATASET.md`](DATASET.md)
-- Model specs:
-  - [`src/mobilenet_v2_small/TECHNICAL.md`](src/mobilenet_v2_small/TECHNICAL.md)
-  - [`src/mobilenet_v3_small/TECHNICAL.md`](src/mobilenet_v3_small/TECHNICAL.md)
-  - [`src/vit_video/TECHNICAL.md`](src/vit_video/TECHNICAL.md)
-- Module READMEs: [`src/mobilenet_v2_small/README.md`](src/mobilenet_v2_small/README.md), [`src/vit_video/README.md`](src/vit_video/README.md)
-- Windows long path setup: [`documentation/WINDOWS_LONG_PATHS.md`](documentation/WINDOWS_LONG_PATHS.md)
-- Architecture reference: [`documentation/1_architecture/1_system_design.md`](documentation/1_architecture/1_system_design.md)
-- [Guide de contribution](CONTRIBUTING.md)
-- [Politique de sécurité](SECURITY.md)
+Apache 2.0
