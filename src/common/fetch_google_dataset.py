@@ -420,7 +420,7 @@ def run(
                     new_total = current_count + n
                     _log(f"  Saved: +{n} (total ~{new_total})")
                     if n == 0:
-                        _log(f"  No new images this round, moving to next category.")
+                        _log("  No new images this round, moving to next category.")
                         break
                     if new_total >= max_num_per_class:
                         break

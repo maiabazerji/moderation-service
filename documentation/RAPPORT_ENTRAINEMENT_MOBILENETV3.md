@@ -117,7 +117,7 @@ La cellule 7 (export + confusion matrix) inclut désormais une **analyse de conf
 1. **Pas de split de test indépendant**. La métrique reportée vient du split val, qui sert aussi à monitorer pendant l'entraînement. Donc légère contamination méthodologique. Pour un livrable produit, prévoir un test set figé (idéalement hash-safe).
 2. **Aucun callback `EarlyStopping`** : le run aurait pu s'arrêter dès l'epoch 12 sans perte de qualité.
 3. **`FORCE_RETRAIN = True`** efface les checkpoints à chaque lancement. Pratique en debug, dangereux en prod — basculer à `False` avant un run final pour exploiter la reprise sur déconnexion.
-4. **Token HF en dur** dans la cellule 1 (`hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`). À sortir vers les Colab Secrets ou les variables d'environnement avant tout commit/partage du notebook.
+4. ~~**Token HF en dur** dans la cellule 1.~~ Corrigé : le notebook lit désormais `HF_TOKEN` depuis l'environnement / les Colab Secrets.
 5. **Pas de test sur trafic Whispr réel**. La métrique reste mesurée sur la distribution d'entraînement.
 
 ## Verdict

@@ -55,7 +55,7 @@ def _build_readme(model_card_path: Path) -> str:
         f"- **Mean:** {norm.get('mean', [])}",
         f"- **Std:** {norm.get('std', [])}",
         "",
-        f"## Exported Formats",
+        "## Exported Formats",
         "",
     ]
     for fmt in exported:
@@ -144,7 +144,7 @@ def upload(
         readme_content = _build_readme(model_card_path)
         readme_path.write_text(readme_content, encoding="utf-8")
         all_files.append(readme_path)
-        print(f"  Generated README.md from model_card.json")
+        print("  Generated README.md from model_card.json")
 
     # Upload
     print(f"\nUploading {len(all_files)} file(s):")

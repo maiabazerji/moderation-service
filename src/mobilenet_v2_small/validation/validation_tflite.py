@@ -124,7 +124,7 @@ def run(cfg: dict):
         tflite_path = Path.cwd() / "BestModelMobileNetV2_inference.tflite"
 
     if not tflite_path.exists():
-        print(f"TFLite model not found. Run convert_to_tflite.py first.")
+        print("TFLite model not found. Run convert_to_tflite.py first.")
         return
 
     class_names = get_class_names(train_dir)

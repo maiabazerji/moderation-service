@@ -102,7 +102,6 @@ def _load_keras_model_compat(model_path: Path) -> tf.keras.Model:
     ``config.json`` on the fly to strip those keys before handing it to Keras.
     """
     import json
-    import re
     import tempfile
     import shutil
     import zipfile
@@ -475,7 +474,6 @@ def build_report(results: dict, class_names: list, n_images: int, output_path: P
                     f"<td>{class_names[base_preds[idx]]}</td>"
                     f"<td>{class_names[other_preds[idx]]}</td></tr>"
                 )
-        disagree_header = f"<th>#{base}</th><th>#{names_list[1]}</th>" if len(names_list) >= 2 else ""
 
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -612,7 +610,7 @@ def main():
 
     # Generate report.
     output_path = EXPORTS_DIR / "validation_report.html"
-    print(f"\nGenerating report...")
+    print("\nGenerating report...")
     path = build_report(results, class_names, n_images, output_path)
     print(f"Report saved: {path}")
     print(f"Open: file://{path.resolve()}")

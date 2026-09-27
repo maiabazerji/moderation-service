@@ -15,7 +15,6 @@ Usage:
 """
 
 import argparse
-import os
 from pathlib import Path
 
 import numpy as np
@@ -52,7 +51,7 @@ def download_other_images(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Downloading Caltech-101 dataset (first run may take a while)...")
+    print("Downloading Caltech-101 dataset (first run may take a while)...")
     ds, info = tfds.load(
         "caltech101",
         split="train",

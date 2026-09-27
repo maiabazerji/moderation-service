@@ -15,7 +15,7 @@ Trois raisons principales :
 ### Clone du repo (cellule 1)
 
 ```python
-REPO_URL = "https://github.com/whispr-messenger/moderation-service.git"
+REPO_URL = "https://github.com/maiabazerji/moderation-service.git"
 BRANCH   = "WHISPR-668"
 ```
 
@@ -164,9 +164,9 @@ Si Colab ne donne pas de GPU (quota épuisé), le notebook **continue** mais bas
 - **Espace disque /content** : ~80 Go partagés. Le dataset vidéo (vidéos YouTube + frames) peut monter à 5-10 Go selon `--videos-per-keyword`. Si l'espace manque pendant le scraping, `yt-dlp` plante avec `OSError: No space left on device`.
 - **Quotas Colab** : compte gratuit limité à ~12 h cumulées de GPU/jour. Au-delà, la session refuse le GPU jusqu'au lendemain. Colab Pro lève cette contrainte (~$10/mois).
 
-## Différences avec le notebook binaire (`vit_video_binary (2).ipynb`)
+## Différences avec le notebook binaire (`vit_video_binary.ipynb`)
 
-Nouvelle version du notebook binaire (`vit_video_binary (2).ipynb`). **Beaucoup plus simple que le multi-classes** — pas de clone du repo, pas de Drive, dataset streamé directement depuis HF.
+Nouvelle version du notebook binaire (`vit_video_binary.ipynb`). **Beaucoup plus simple que le multi-classes** — pas de clone du repo, pas de Drive, dataset streamé directement depuis HF.
 
 ### Pile et auth
 
@@ -231,7 +231,7 @@ Cellule 7 push vers **`maia2000/food-classifier-binary-vit`**. Cellule 8 (la der
 8. `HF_MODEL_REPO` pointe vers **`maia2000/food-classifier-vitb16`** (le nom a changé, plus `maia2000/food-classifier`).
 9. Si reprise : vérifier que `DRIVE_CHECKPOINT_PATH` existe et a la bonne taille avant de lancer la cellule training.
 
-### Binaire (`vit_video_binary (2).ipynb`)
+### Binaire (`vit_video_binary.ipynb`)
 
 1. Token HF dans les Colab Secrets — obligatoire (pas de fallback).
 2. GPU confirmé (`device: cuda` dans la sortie de la cellule 4).

@@ -2,7 +2,7 @@
 
 Notes sur les runs de référence du classifieur basé sur Vision Transformer (`src/vit_video/`). Trois runs documentés ici :
 
-- **Run binaire courant** — nouveau notebook `vit_video_binary (2).ipynb`, exécuté sur Colab T4. **Run de référence courant.**
+- **Run binaire courant** — nouveau notebook `vit_video_binary.ipynb`, exécuté sur Colab T4. **Run de référence courant.**
 - **Run multi-classes courant** — notebook `vit_video.ipynb`, **dataset préparé mais entraînement non exécuté** dans le snapshot courant.
 - **Ancien run CLI** — `train.py` + MobileViT-XXS CPU, conservé pour traçabilité.
 
@@ -12,7 +12,7 @@ Les chiffres viennent des sorties cellules des notebooks et de `src/vit_video/ex
 
 ### 1.1 Configuration
 
-Issue de `vit_video_binary (2).ipynb`, cellule 4 :
+Issue de `vit_video_binary.ipynb`, cellule 4 :
 
 | Paramètre | Valeur |
 |---|---|

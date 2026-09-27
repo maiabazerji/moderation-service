@@ -17,16 +17,14 @@ Usage:
 """
 
 import datetime
-import os
-import sys
 from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.colors import HexColor
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm, mm
+from reportlab.lib.units import cm
 from reportlab.platypus import (
     SimpleDocTemplate,
     Table,
@@ -36,7 +34,6 @@ from reportlab.platypus import (
     Image,
     PageBreak,
     HRFlowable,
-    KeepTogether,
 )
 
 

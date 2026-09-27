@@ -14,7 +14,8 @@ from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 from torch.utils.data import DataLoader, Subset
 
 try:
-    import _bootstrap; _bootstrap.setup()
+    import _bootstrap
+    _bootstrap.setup()
 except ImportError:
     pass  # sys.path already configured (e.g. Colab notebook)
 

@@ -245,7 +245,7 @@ def run_experiments(experiments: list, force: bool = False):
             traceback.print_exc()
             continue
 
-    print(f"\nAll experiments finished.")
+    print("\nAll experiments finished.")
 
 
 # ── Collect real results ─────────────────────────────────────────────────────

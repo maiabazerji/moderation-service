@@ -14,8 +14,6 @@ from PIL import Image
 from collections import Counter, defaultdict
 from typing import List, Optional, Set, Tuple, Union
 
-logger = logging.getLogger(__name__)
-
 from vit_video.data.splits import (
     keys_from_manifest_split,
     load_split_manifest,
@@ -25,6 +23,8 @@ from vit_video.data.splits import (
     warn_if_new_videos_not_in_manifest,
     write_split_manifest,
 )
+
+logger = logging.getLogger(__name__)
 
 _STEM_PATTERN = re.compile(r"^(.+)_frame_\d+$")
 

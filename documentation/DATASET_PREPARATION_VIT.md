@@ -4,7 +4,7 @@ Notes pratiques sur la constitution des datasets consommés par `src/vit_video/`
 
 - **Mode A** — pipeline locale CLI (`generatedata.py` → YouTube + extraction de frames). Mode historique, toujours fonctionnel.
 - **Mode B** — notebook multi-classes (`vit_video.ipynb` → snapshot HF + bootstrap Food-101 + scraping Bing). 16 classes fines + rollup santé.
-- **Mode C** — notebook binaire **nouvelle version** (`vit_video_binary (2).ipynb` → Food-101 direct depuis HF, remap binaire en mémoire). Aucun frame écrit sur disque, ~10 min sur T4.
+- **Mode C** — notebook binaire **nouvelle version** (`vit_video_binary.ipynb` → Food-101 direct depuis HF, remap binaire en mémoire). Aucun frame écrit sur disque, ~10 min sur T4.
 
 Toutes les commandes se lancent depuis `src/vit_video/`.
 
@@ -179,7 +179,7 @@ Sortie de la cellule 7 (`cell-inspect`) après bootstrap Food-101 sans scraping 
 
 Le sous-dossier `_tmp_download/` (20 frames) est un résidu du scraping précédent — à supprimer avant la cellule 8 (`shutil.rmtree(FRAMES_DIR / "_tmp_download")`), sinon il sera traité comme une 14e classe nommée `_tmp_download`.
 
-## Mode C — Notebook binaire `vit_video_binary (2).ipynb`
+## Mode C — Notebook binaire `vit_video_binary.ipynb`
 
 Nouveau notebook qui remplace l'ancien `vit_video_binary.ipynb`. Le dataset n'est **pas écrit sur disque** — Food-101 est streamé depuis HF, remappé en binaire en mémoire, puis enveloppé dans des DataLoaders PyTorch via une classe `HFImageDs`.
 
@@ -303,7 +303,7 @@ Sortie de la cellule 7 (`cell-inspect`) :
 
 3 classes manquantes (`smoothies`, `sugary_drinks`, `not_food`) faussent la comparaison avec les attendus 16-classes.
 
-### Binaire via notebook `vit_video_binary (2).ipynb`
+### Binaire via notebook `vit_video_binary.ipynb`
 
 | Split | Total | healthy | unhealthy |
 |---|---|---|---|

@@ -9,7 +9,8 @@ from pathlib import Path
 import torch
 
 try:
-    import _bootstrap; _bootstrap.setup()
+    import _bootstrap
+    _bootstrap.setup()
 except ImportError:
     pass  # sys.path already configured (e.g. Colab notebook)
 

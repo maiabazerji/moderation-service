@@ -9,7 +9,8 @@ from typing import List, Optional, Tuple
 import torch
 
 try:
-    import _bootstrap; _bootstrap.setup()
+    import _bootstrap
+    _bootstrap.setup()
 except ImportError:
     pass  # sys.path already configured (e.g. Colab notebook)
 
@@ -223,13 +224,13 @@ def export_tfjs(
         )
     except Exception as e:
         print(f"  TFJS conversion failed: {e}")
-        print(f"  This is expected for transformer architectures. Use MobileNetV3 for browser deployment.")
+        print("  This is expected for transformer architectures. Use MobileNetV3 for browser deployment.")
         return None
 
     total = sum(f.stat().st_size for f in output_path.rglob("*") if f.is_file())
     print(f"  Saved to {output_path}/ ({total / 1024 / 1024:.2f} MB, "
           f"{'uint8-quantized' if quantize else 'float32'})")
-    print(f"  ⚠️ Validate numerical parity against the PyTorch model before shipping.")
+    print("  ⚠️ Validate numerical parity against the PyTorch model before shipping.")
     return output_path
 
 
@@ -335,7 +336,7 @@ def main(args) -> None:
             with open(args.eval_results, encoding="utf-8") as f:
                 evaluation_metrics = json.load(f)
             if not isinstance(evaluation_metrics, dict):
-                print(f"  [WARN] eval_results is not a JSON object — ignoring.")
+                print("  [WARN] eval_results is not a JSON object — ignoring.")
                 evaluation_metrics = None
         except (json.JSONDecodeError, OSError) as e:
             print(f"  [WARN] Could not read eval results: {e}")
@@ -346,7 +347,7 @@ def main(args) -> None:
             with open(args.training_metrics, encoding="utf-8") as f:
                 training_metadata = json.load(f)
             if not isinstance(training_metadata, dict):
-                print(f"  [WARN] training_metrics is not a JSON object — ignoring.")
+                print("  [WARN] training_metrics is not a JSON object — ignoring.")
                 training_metadata = None
         except (json.JSONDecodeError, OSError) as e:
             print(f"  [WARN] Could not read training metrics: {e}")

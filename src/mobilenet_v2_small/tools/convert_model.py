@@ -28,7 +28,6 @@ from pathlib import Path
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 import tensorflow as tf
-import numpy as np
 
 
 # ── Defaults ─────────────────────────────────────────────────────────────────
@@ -60,7 +59,8 @@ def build_inference_model(model_path: str) -> tf.keras.Model:
     except (TypeError, ValueError):
         # Models saved with newer Keras may contain keys (e.g. quantization_config)
         # that the current version doesn't recognise. Patch the config on-the-fly.
-        import zipfile as _zf, tempfile as _tmp
+        import zipfile as _zf
+        import tempfile as _tmp
 
         _STRIP = {"quantization_config"}
 
@@ -89,7 +89,7 @@ def build_inference_model(model_path: str) -> tf.keras.Model:
     # Architecture:  Input -> preprocess -> data_augmentation -> backbone -> ...
     # We want to connect Input directly to the backbone, skipping augmentation.
 
-    layer_names = [l.name for l in model.layers]
+    layer_names = [layer.name for layer in model.layers]
     print(f"Layer names: {layer_names}")
 
     # Strategy: find the data_augmentation layer and bypass it.

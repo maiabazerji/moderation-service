@@ -85,7 +85,7 @@ def main():
 
     # Import and verify login.
     try:
-        from huggingface_hub import HfApi, login
+        from huggingface_hub import HfApi
     except ImportError:
         print("ERROR: huggingface-hub not installed. Run: pip install huggingface-hub")
         sys.exit(1)

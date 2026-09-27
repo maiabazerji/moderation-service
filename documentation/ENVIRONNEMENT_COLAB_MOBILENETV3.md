@@ -50,20 +50,23 @@ Torch / Transformers ne sont pas utilisés par le pipeline d'entraînement, mais
 
 ### Hugging Face
 
+Le token est lu depuis la variable d'environnement `HF_TOKEN` (aucun token n'est stocké dans le notebook) :
+
 ```python
-HF_TOKEN = "hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # ⚠ token en dur dans la cellule 1
+HF_TOKEN = os.environ.get("HF_TOKEN", "")
 os.environ["HF_TOKEN"] = HF_TOKEN
-login(token=HF_TOKEN, add_to_git_credential=False)
+if HF_TOKEN:
+    login(token=HF_TOKEN, add_to_git_credential=False)
 ```
 
-**Recommandation** : déplacer le token dans les **Colab Secrets** (icône clé dans la barre latérale gauche) et lire :
+Sur Colab, le plus simple est de passer par les **Colab Secrets** (icône clé dans la barre latérale gauche) :
 
 ```python
 from google.colab import userdata
 HF_TOKEN = userdata.get("HF_TOKEN")
 ```
 
-Le token codé en dur dans le notebook actuel a déjà déclenché un `401 Unauthorized` sur l'upload de la cellule 5 — probablement révoqué. Tout commit public du notebook expose le token.
+Ne jamais écrire le token en dur dans une cellule : tout commit du notebook l'exposerait.
 
 ### Google Drive
 
